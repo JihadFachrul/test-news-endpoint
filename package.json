@@ -8,7 +8,10 @@
   },
   "scripts": {
     "db:setup": "tsx scripts/setup-db.ts",
+    "ingest": "tsx scripts/ingest-seed.ts",
+    "dev": "tsx watch src/main.ts",
     "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/main.js",
     "test": "vitest run"
   },
   "devDependencies": {
@@ -20,6 +23,7 @@
   },
   "dependencies": {
     "dotenv": "^17.4.2",
+    "fastify": "^5.12.0",
     "pg": "^8.23.0"
   }
 }
