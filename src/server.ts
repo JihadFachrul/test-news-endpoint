@@ -7,6 +7,7 @@
  */
 import Fastify from 'fastify';
 import { ingestMentions } from './ingest.js';
+import { parseSearchQuery, searchMentions } from './search.js';
 import { pool } from './db.js';
 
 export function buildServer() {
@@ -53,6 +54,33 @@ export function buildServer() {
     // 200, bukan 201. Endpoint ini idempotent: kiriman kedua kalinya tidak
     // membuat apa pun, jadi "201 Created" akan menyesatkan.
     return reply.code(200).send(laporan);
+  });
+
+  // -------------------------------------------------------------------------
+  // GET /mentions
+  //
+  // Parameter yang didukung:
+  //   q       kata kunci, dicari di judul dan isi berita
+  //   source  saringan sumber, mis. thestar (nama biasa juga bisa: "The Star")
+  //   from    batas awal tanggal, inklusif
+  //   to      batas akhir tanggal; kalau diisi tanggal saja, seluruh hari itu
+  //           ikut terhitung
+  //   limit   jumlah baris per halaman (1-100, bawaan 20)
+  //   offset  jumlah baris yang dilewati (bawaan 0)
+  // -------------------------------------------------------------------------
+  app.get('/mentions', async (request, reply) => {
+    const { params, errors } = parseSearchQuery(
+      (request.query ?? {}) as Record<string, unknown>,
+    );
+
+    // Parameter yang salah dilaporkan SEMUANYA sekaligus, bukan satu per satu.
+    // Kalau dilaporkan satu-satu, pemakainya harus mencoba berulang kali untuk
+    // menemukan semua kesalahannya.
+    if (errors.length > 0) {
+      return reply.code(400).send({ error: 'Parameter pencarian tidak valid.', detail: errors });
+    }
+
+    return reply.send(await searchMentions(params));
   });
 
   // Menutup pool sambungan database saat server dimatikan, supaya proses

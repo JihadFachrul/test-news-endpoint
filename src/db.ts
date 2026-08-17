@@ -4,7 +4,19 @@
 import 'dotenv/config';
 import { Pool, type PoolClient } from 'pg';
 
-const connectionString = process.env['DATABASE_URL'];
+/**
+ * Saat dijalankan oleh tes, TEST_DATABASE_URL dipakai kalau tersedia.
+ *
+ * Kenapa perlu? Karena tes integrasi mengosongkan tabel sebelum bekerja. Tanpa
+ * pemisahan ini, siapa pun yang menjalankan `npm test` setelah memasukkan data
+ * akan kehilangan datanya -- kejutan yang tidak menyenangkan. Kalau
+ * TEST_DATABASE_URL tidak diisi, tes memakai database biasa dan itu tetap
+ * aman, hanya saja tabelnya jadi kosong setelah tes selesai.
+ */
+const sedangDitest = process.env['VITEST'] === 'true';
+const connectionString = sedangDitest
+  ? (process.env['TEST_DATABASE_URL'] ?? process.env['DATABASE_URL'])
+  : process.env['DATABASE_URL'];
 
 if (!connectionString) {
   throw new Error(
