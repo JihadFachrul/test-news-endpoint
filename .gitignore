@@ -3,9 +3,14 @@ dist/
 *.log
 .DS_Store
 
-# File database SQLite. Dibuat lokal oleh: npm run db:setup
-data/
+# Berisi alamat & password database di komputer sendiri.
+# Contoh isinya ada di .env.example, yang ikut ter-commit.
+.env
 
 # Brief tesnya adalah dokumen milik perusahaan, bukan bagian dari kiriman kita.
 # Disimpan di komputer sendiri, tidak pernah diunggah.
 *.pdf
+
+# File bantu yang hanya cocok untuk komputer pengembang (PostgreSQL Laragon,
+# port tidak standar). Penilai memakai instruksi di README, bukan file ini.
+mulai-postgres.bat
