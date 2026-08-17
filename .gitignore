@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# File database SQLite. Dibuat lokal oleh: npm run db:setup
+data/
+
+# Brief tesnya adalah dokumen milik perusahaan, bukan bagian dari kiriman kita.
+# Disimpan di komputer sendiri, tidak pernah diunggah.
+*.pdf
