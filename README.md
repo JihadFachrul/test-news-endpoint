@@ -17,6 +17,7 @@ endpoint, and a stats endpoint, backed by PostgreSQL.
 
 - [Requirements](#requirements)
 - [How to run it](#how-to-run-it)
+- [The dashboard](#the-dashboard)
 - [API](#api)
 - [The schema, and why](#the-schema-and-why)
 - [Duplicate detection, and why](#duplicate-detection-and-why)
@@ -141,6 +142,11 @@ function, so there is no second code path that could behave differently.
 
 ### 7. Try it
 
+The quickest way is to **open <http://127.0.0.1:3000> in a browser** — there is a
+read-only dashboard there, described [below](#the-dashboard).
+
+Or with curl:
+
 ```bash
 curl "http://127.0.0.1:3000/mentions?q=ringgit"
 curl "http://127.0.0.1:3000/mentions?source=The%20Star&limit=5"
@@ -148,6 +154,41 @@ curl "http://127.0.0.1:3000/mentions?from=2026-08-13&to=2026-08-13"
 curl "http://127.0.0.1:3000/mentions/stats?group_by=source"
 curl "http://127.0.0.1:3000/mentions/stats?group_by=day"
 ```
+
+---
+
+## The dashboard
+
+![The dashboard](docs/dashboard.png)
+
+Optional per the brief, and not graded — it exists so you can see the API
+working without opening curl or Postman. It lives at `/`; the JSON endpoint
+index moved to `/api`.
+
+One file, [`public/index.html`](public/index.html): no build step, no framework,
+and nothing loaded from the internet, so it still works offline. Served by
+`readFile` rather than by adding a static-file package — for a single file, one
+more dependency is not worth it.
+
+It calls only this service's own endpoints, and shows you which ones:
+
+- **The exact request URLs are displayed** and update as you change the filters,
+  so you can copy either straight into `curl`.
+- **The sort order is shown** as returned by the API, not hardcoded in the page.
+- **The `by day` chart names its timezone**, and the mention list renders times
+  in Malaysian time so the list and the chart agree.
+- **Undated mentions appear** — as an italic `no date` row at the bottom of the
+  list, and as a `tanpa tanggal` bucket at the end of the chart.
+- **The `Seen` column** shows `times_seen`, so the merged duplicates are visible:
+  the ringgit article reads 3, the GDP article reads 2.
+- **Validation errors are displayed in full**, including the per-parameter
+  detail messages, which is the most useful part when you are poking at the API.
+
+Every string from the API reaches the DOM through `textContent`, never
+`innerHTML`. The server already strips scripts, so this is a second layer:
+even if a payload got through, it would render as visible text instead of
+executing. One seed record ships a live `<script>alert(1)</script>`, so the
+concern is not hypothetical.
 
 ---
 
@@ -777,5 +818,7 @@ Docker Compose is not included either — it is optional in the brief, and since
 the service needs only Node and a PostgreSQL connection string, adding it would
 have made setup longer rather than shorter.
 
-The optional read-only dashboard page is not built. Happy to add one; it was
-below the required work in priority.
+The optional read-only dashboard **is** included — see
+[the dashboard](#the-dashboard). It was built last, after everything the brief
+requires, and it deliberately contains no logic of its own: every number on it
+comes from the API, including the sort order and the timezone.

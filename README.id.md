@@ -12,6 +12,7 @@ massal, satu untuk mencari, satu untuk menghitung, dengan database PostgreSQL.
 
 - [Yang dibutuhkan](#yang-dibutuhkan)
 - [Cara menjalankan](#cara-menjalankan)
+- [Halaman dashboard](#halaman-dashboard)
 - [Daftar endpoint](#daftar-endpoint)
 - [Bentuk tabel, dan alasannya](#bentuk-tabel-dan-alasannya)
 - [Aturan duplikat, dan alasannya](#aturan-duplikat-dan-alasannya)
@@ -134,6 +135,11 @@ ada jalur kode kedua yang bisa berbeda perilakunya.
 
 ### 7. Coba
 
+Cara tercepat: **buka <http://127.0.0.1:3000> di browser** — di situ ada halaman
+dashboard baca-saja, dijelaskan [di bawah](#halaman-dashboard).
+
+Atau lewat curl:
+
 ```bash
 curl "http://127.0.0.1:3000/mentions?q=ringgit"
 curl "http://127.0.0.1:3000/mentions?source=The%20Star&limit=5"
@@ -141,6 +147,43 @@ curl "http://127.0.0.1:3000/mentions?from=2026-08-13&to=2026-08-13"
 curl "http://127.0.0.1:3000/mentions/stats?group_by=source"
 curl "http://127.0.0.1:3000/mentions/stats?group_by=day"
 ```
+
+---
+
+## Halaman dashboard
+
+![Halaman dashboard](docs/dashboard.png)
+
+Opsional menurut brief dan tidak dinilai — gunanya supaya API ini bisa dilihat
+bekerja tanpa membuka curl atau Postman. Alamatnya `/`; daftar endpoint dalam
+bentuk JSON dipindah ke `/api`.
+
+Satu berkas, [`public/index.html`](public/index.html): tanpa proses build, tanpa
+framework, dan tidak memuat apa pun dari internet, jadi tetap jalan walau
+sedang offline. Dilayani dengan `readFile`, tanpa memasang paket pelayan berkas
+statis — untuk satu berkas, satu paket tambahan tidak sepadan.
+
+Halaman ini hanya memanggil endpoint milik layanan ini sendiri, dan
+menunjukkan yang mana saja:
+
+- **Alamat permintaan yang sedang dipakai ditampilkan** dan berubah mengikuti
+  saringan, jadi bisa langsung disalin ke `curl`.
+- **Urutan tampilan ditampilkan** sesuai yang dikembalikan API, bukan ditulis
+  ulang di halaman.
+- **Grafik harian menyebut zona waktunya**, dan daftar beritanya menampilkan jam
+  dalam waktu Malaysia supaya daftar dan grafiknya sepakat.
+- **Berita tanpa tanggal tetap muncul** — sebagai baris miring `no date` di
+  bagian bawah daftar, dan sebagai ember `tanpa tanggal` di ujung grafik.
+- **Kolom `Seen`** menampilkan `times_seen`, jadi duplikat yang sudah digabung
+  kelihatan: artikel ringgit menunjukkan 3, artikel GDP menunjukkan 2.
+- **Kesalahan parameter ditampilkan lengkap**, termasuk pesan rinci per
+  parameter — justru bagian paling berguna saat sedang mencoba-coba API.
+
+Setiap teks dari API masuk ke halaman lewat `textContent`, bukan `innerHTML`.
+Servernya sudah membuang kode berbahaya, jadi ini lapis kedua: seandainya ada
+yang lolos, ia akan tampil sebagai tulisan biasa alih-alih dijalankan. Satu
+record di data seed memang menyelipkan `<script>alert(1)</script>` yang hidup,
+jadi kekhawatirannya bukan mengada-ada.
 
 ---
 
@@ -791,5 +834,8 @@ Docker Compose juga tidak disertakan — brief menyebutnya opsional, dan karena
 layanan ini hanya butuh Node ditambah satu alamat sambungan PostgreSQL,
 menambahkannya akan membuat pemasangan lebih panjang, bukan lebih singkat.
 
-Halaman dashboard baca-saja yang opsional juga belum dibuat. Dengan senang hati
-saya tambahkan; prioritasnya berada di bawah pekerjaan yang diwajibkan.
+Halaman dashboard baca-saja yang opsional **disertakan** — lihat
+[halaman dashboard](#halaman-dashboard). Dibuat paling akhir, setelah semua yang
+diwajibkan brief selesai, dan sengaja tidak memuat logika sendiri sedikit pun:
+setiap angka di sana berasal dari API, termasuk urutan tampilan dan zona
+waktunya.

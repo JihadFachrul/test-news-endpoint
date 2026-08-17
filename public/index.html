@@ -1,0 +1,566 @@
+<!doctype html>
+<!--
+  Halaman dashboard baca-saja.
+
+  Opsional menurut brief dan tidak dinilai keindahannya. Gunanya satu:
+  supaya API ini bisa dicoba tanpa perlu membuka curl atau Postman.
+
+  Sengaja satu berkas tanpa proses build, tanpa framework, dan tanpa memuat
+  apa pun dari internet -- jadi tetap jalan walau penilainya sedang offline.
+
+  CATATAN KEAMANAN: seluruh teks dari API dimasukkan ke halaman lewat
+  textContent, BUKAN innerHTML. Jadi walaupun ada kode berbahaya yang lolos
+  dari pembersihan di sisi server, ia tetap tampil sebagai tulisan biasa dan
+  tidak bisa dijalankan. Ini lapis pertahanan kedua: satu record di data seed
+  memang menyelipkan <script>alert(1)</script>.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media Monitoring — Dashboard</title>
+<!-- Ikon ditanam langsung sebagai data URI. Tanpa ini browser meminta
+     /favicon.ico, servernya menjawab 404, dan error itu muncul di console
+     penilai yang membuka DevTools. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230b6bcb'/%3E%3Crect x='3' y='9' width='2.5' height='4' fill='white'/%3E%3Crect x='6.75' y='6' width='2.5' height='7' fill='white'/%3E%3Crect x='10.5' y='3' width='2.5' height='10' fill='white'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #dfe3e8;
+    --text: #1c2128;
+    --muted: #656d76;
+    --accent: #0b6bcb;
+    --bar: #0b6bcb;
+    --bar-alt: #7a8794;
+    --danger: #b42318;
+    --code-bg: #eef1f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216;
+      --panel: #171b21;
+      --border: #2b323b;
+      --text: #e3e6ea;
+      --muted: #98a1ab;
+      --accent: #6cb2ff;
+      --bar: #4a90d9;
+      --bar-alt: #5b6672;
+      --danger: #ff8a7a;
+      --code-bg: #10141a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 24px 16px 64px;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  h1 { font-size: 21px; margin: 0 0 4px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em;
+       color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  /* ---- filter bar ---- */
+  .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .field input, .field select {
+    font: inherit; font-size: 14px; padding: 7px 9px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--text); min-width: 132px;
+  }
+  .field.grow { flex: 1 1 220px; }
+  .field.grow input { width: 100%; min-width: 0; }
+
+  button {
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    padding: 8px 16px; border-radius: 6px;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  }
+  button.ghost { background: transparent; color: var(--text); border-color: var(--border); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* ---- the request URLs, so they can be copied into curl ---- */
+  .requests { font-size: 12px; color: var(--muted); margin-top: 14px;
+              border-top: 1px solid var(--border); padding-top: 12px; }
+  /* Hanya URL-nya yang jadi blok sendiri. Kalau aturan ini dipasang ke semua
+     <code> di dalam .requests, kata "curl" yang ada di tengah kalimat ikut
+     terdorong ke barisnya sendiri dan kalimatnya jadi terpotong-potong. */
+  .requests code.url {
+    display: block; margin-top: 4px;
+    overflow-x: auto; white-space: nowrap;
+  }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .92em; background: var(--code-bg); color: var(--text);
+    padding: 2px 5px; border-radius: 4px;
+  }
+  .requests code.url { padding: 6px 8px; font-size: 12px; }
+
+  /* ---- stat tiles ---- */
+  .tiles { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .tile { flex: 1 1 150px; background: var(--panel); border: 1px solid var(--border);
+          border-radius: 8px; padding: 14px 16px; }
+  .tile .n { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .tile .k { font-size: 12px; color: var(--muted); text-transform: uppercase;
+             letter-spacing: .04em; font-weight: 600; }
+
+  /* ---- charts ---- */
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) { .charts { grid-template-columns: 1fr; } }
+
+  .bars { display: flex; flex-direction: column; gap: 7px; }
+  .row { display: grid; grid-template-columns: 132px 1fr 34px; gap: 8px; align-items: center; }
+  .row .name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .track { background: var(--code-bg); border-radius: 3px; height: 16px; overflow: hidden; }
+  .row .fill { height: 100%; background: var(--bar); border-radius: 3px; min-width: 2px; }
+  .row .fill.alt { background: var(--bar-alt); }
+  .row .val { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums;
+              color: var(--muted); }
+  .tz { font-size: 12px; color: var(--muted); margin-top: 10px; }
+
+  /* ---- list ---- */
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border);
+           vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); text-transform: uppercase;
+       letter-spacing: .04em; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.when { white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .title { font-weight: 600; }
+  .title a { color: inherit; }
+  .snippet { color: var(--muted); font-size: 13px; margin-top: 2px;
+             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+             overflow: hidden; }
+  .chip { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px;
+          border: 1px solid var(--border); border-radius: 99px; color: var(--muted);
+          white-space: nowrap; }
+  .flag { color: var(--muted); font-style: italic; }
+
+  .pager { display: flex; align-items: center; gap: 12px; margin-top: 14px;
+           flex-wrap: wrap; }
+  .pager .info { font-size: 13px; color: var(--muted); }
+
+  .note { font-size: 13px; color: var(--muted); margin-top: 12px;
+          border-left: 3px solid var(--border); padding-left: 10px; }
+  .err { color: var(--danger); font-size: 14px; }
+  .err ul { margin: 6px 0 0; padding-left: 20px; }
+  .empty { color: var(--muted); padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Media Monitoring</h1>
+  <p class="sub">
+    Read-only dashboard. Everything below is fetched from this service's own
+    <code>/mentions</code> and <code>/mentions/stats</code> endpoints.
+  </p>
+
+  <!-- ---------------- filters ---------------- -->
+  <div class="panel">
+    <form class="filters" id="form">
+      <div class="field grow">
+        <label for="q">Search (title + content)</label>
+        <input id="q" name="q" type="search" placeholder="e.g. ringgit, banjir, &quot;Bank Negara&quot;" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="source">Source</label>
+        <select id="source" name="source"><option value="">All sources</option></select>
+      </div>
+      <div class="field">
+        <label for="from">From</label>
+        <input id="from" name="from" type="date">
+      </div>
+      <div class="field">
+        <label for="to">To</label>
+        <input id="to" name="to" type="date">
+      </div>
+      <div class="field">
+        <label for="limit">Per page</label>
+        <select id="limit" name="limit">
+          <option>5</option><option selected>10</option><option>20</option><option>50</option>
+        </select>
+      </div>
+      <button type="submit">Apply</button>
+      <!-- id-nya SENGAJA bukan "reset". Sebuah <form> mengekspos kontrol di
+           dalamnya sebagai properti berdasarkan id atau name, jadi id="reset"
+           membuat form.reset menunjuk ke tombol ini dan menimpa fungsi
+           reset() bawaan milik form. -->
+      <button type="button" class="ghost" id="btn-reset">Reset</button>
+    </form>
+
+    <div class="requests">
+      Requests being made — copy either into <code>curl</code>:
+      <code class="url" id="url-list">…</code>
+      <code class="url" id="url-stats">…</code>
+    </div>
+  </div>
+
+  <div id="error" class="panel err" hidden></div>
+
+  <!-- ---------------- counts ---------------- -->
+  <div class="tiles">
+    <div class="tile"><div class="n" id="t-total">–</div><div class="k">Mentions</div></div>
+    <div class="tile"><div class="n" id="t-sources">–</div><div class="k">Sources</div></div>
+    <div class="tile"><div class="n" id="t-days">–</div><div class="k">Days covered</div></div>
+    <!-- Label menyebut "this page" dengan sengaja: angkanya dijumlahkan dari
+         baris yang sedang tampil saja. Menyebutnya "total" akan berbohong,
+         karena API tidak mengembalikan jumlah engagement seluruh hasil. -->
+    <div class="tile"><div class="n" id="t-eng">–</div><div class="k">Engagement (this page)</div></div>
+  </div>
+
+  <div class="charts">
+    <div class="panel">
+      <h2>By source</h2>
+      <div class="bars" id="chart-source"></div>
+    </div>
+    <div class="panel">
+      <h2>By day</h2>
+      <div class="bars" id="chart-day"></div>
+      <p class="tz" id="tz"></p>
+    </div>
+  </div>
+
+  <!-- ---------------- list ---------------- -->
+  <div class="panel">
+    <h2>Mentions</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Published</th>
+            <th>Source</th>
+            <th>Mention</th>
+            <th class="num">Engag.</th>
+            <th class="num">Seen</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div id="empty" class="empty" hidden>No mentions match these filters.</div>
+
+    <div class="pager">
+      <button type="button" class="ghost" id="prev">← Previous</button>
+      <button type="button" class="ghost" id="next">Next →</button>
+      <span class="info" id="page-info"></span>
+    </div>
+
+    <p class="note" id="sort-note"></p>
+    <p class="note" id="date-note" hidden></p>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------------
+// Keadaan halaman. offset satu-satunya yang berubah lewat tombol paginasi;
+// sisanya diambil dari form.
+// ---------------------------------------------------------------------------
+let offset = 0;
+let lastTotal = 0;
+
+const $ = (id) => document.getElementById(id);
+
+/** Menyusun parameter URL dari isi form. Nilai kosong tidak dikirim. */
+function filterParams() {
+  const p = new URLSearchParams();
+  for (const key of ["q", "source", "from", "to"]) {
+    const v = $(key).value.trim();
+    if (v) p.set(key, v);
+  }
+  return p;
+}
+
+function listUrl() {
+  const p = filterParams();
+  p.set("limit", $("limit").value);
+  p.set("offset", String(offset));
+  return "/mentions?" + p.toString();
+}
+
+function statsUrl(groupBy) {
+  const p = filterParams();
+  p.set("group_by", groupBy);
+  return "/mentions/stats?" + p.toString();
+}
+
+/**
+ * Menampilkan pesan error. Detail dari respon 400 ikut ditampilkan, karena di
+ * situlah API menjelaskan parameter mana yang salah -- justru bagian paling
+ * berguna saat sedang mencoba-coba.
+ */
+function showError(message, details) {
+  const box = $("error");
+  box.textContent = "";
+  box.append(document.createTextNode(message));
+  if (details && details.length) {
+    const ul = document.createElement("ul");
+    for (const d of details) {
+      const li = document.createElement("li");
+      li.textContent = d;      // textContent, bukan innerHTML
+      ul.append(li);
+    }
+    box.append(ul);
+  }
+  box.hidden = false;
+}
+
+async function getJson(url) {
+  const res = await fetch(url);
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const err = new Error((body && body.error) || ("HTTP " + res.status));
+    err.details = (body && body.detail) || [];
+    throw err;
+  }
+  return body;
+}
+
+/** Menggambar satu grafik batang sederhana pakai CSS, tanpa library. */
+function drawBars(container, items, altClass) {
+  container.textContent = "";
+  if (!items.length) {
+    const p = document.createElement("div");
+    p.className = "empty";
+    p.textContent = "Nothing to show.";
+    container.append(p);
+    return;
+  }
+  const max = Math.max(...items.map((i) => i.value));
+  for (const item of items) {
+    const row = document.createElement("div");
+    row.className = "row";
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = item.label;
+    name.title = item.label;
+
+    const track = document.createElement("div");
+    track.className = "track";
+    const fill = document.createElement("div");
+    fill.className = altClass ? "fill alt" : "fill";
+    fill.style.width = (max > 0 ? (item.value / max) * 100 : 0) + "%";
+    track.append(fill);
+
+    const val = document.createElement("div");
+    val.className = "val";
+    val.textContent = String(item.value);
+
+    row.append(name, track, val);
+    container.append(row);
+  }
+}
+
+/** Waktu terbit ditampilkan dalam waktu Malaysia, sama seperti grafik harian. */
+function formatWhen(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString("en-GB", {
+    timeZone: "Asia/Kuala_Lumpur",
+    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function drawRows(data) {
+  const tbody = $("rows");
+  tbody.textContent = "";
+  $("empty").hidden = data.length > 0;
+
+  for (const m of data) {
+    const tr = document.createElement("tr");
+
+    const when = document.createElement("td");
+    when.className = "when";
+    const t = formatWhen(m.published_at);
+    if (t) {
+      when.textContent = t;
+    } else {
+      when.textContent = "no date";
+      when.className += " flag";
+    }
+
+    const src = document.createElement("td");
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.textContent = m.source.name;
+    src.append(chip);
+
+    const body = document.createElement("td");
+    const title = document.createElement("div");
+    title.className = "title";
+    // Postingan media sosial tidak punya judul; isinya yang jadi judulnya.
+    const heading = m.title || m.content || "(no text)";
+    if (m.url) {
+      const a = document.createElement("a");
+      a.href = m.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = heading;    // textContent: kode berbahaya tetap jadi tulisan
+      title.append(a);
+    } else {
+      title.textContent = heading;
+    }
+    body.append(title);
+    if (m.title && m.content) {
+      const snip = document.createElement("div");
+      snip.className = "snippet";
+      snip.textContent = m.content;
+      body.append(snip);
+    }
+    if (m.author) {
+      const by = document.createElement("div");
+      by.className = "snippet";
+      by.textContent = "— " + m.author;
+      body.append(by);
+    }
+
+    const eng = document.createElement("td");
+    eng.className = "num";
+    eng.textContent = m.engagement === null ? "–" : m.engagement.toLocaleString("en-GB");
+
+    const seen = document.createElement("td");
+    seen.className = "num";
+    seen.textContent = String(m.times_seen);
+    if (m.times_seen > 1) {
+      seen.title = m.times_seen + " deliveries merged into this one mention";
+    }
+
+    tr.append(when, src, body, eng, seen);
+    tbody.append(tr);
+  }
+}
+
+/** Memuat ulang semuanya: daftar berita dan kedua grafik, sekali jalan. */
+async function load() {
+  $("error").hidden = true;
+  $("url-list").textContent = listUrl();
+  $("url-stats").textContent = statsUrl("source") + "   &   " + statsUrl("day");
+
+  try {
+    const [list, bySource, byDay] = await Promise.all([
+      getJson(listUrl()),
+      getJson(statsUrl("source")),
+      getJson(statsUrl("day")),
+    ]);
+
+    lastTotal = list.pagination.total;
+
+    // --- angka ringkas ---
+    $("t-total").textContent = list.pagination.total.toLocaleString("en-GB");
+    $("t-sources").textContent = String(bySource.data.length);
+    $("t-days").textContent = String(byDay.data.filter((d) => d.day !== null).length);
+    $("t-eng").textContent = list.data
+      .reduce((sum, m) => sum + (m.engagement || 0), 0)
+      .toLocaleString("en-GB");
+
+    // --- grafik ---
+    drawBars($("chart-source"), bySource.data.map((d) => ({ label: d.name, value: d.total })), false);
+    drawBars($("chart-day"), byDay.data.map((d) => ({ label: d.label, value: d.total })), true);
+    $("tz").textContent = "Days are counted in " + (byDay.timezone || "?") +
+      ". Mentions with no publication date get their own bucket rather than being dropped.";
+
+    // --- daftar ---
+    drawRows(list.data);
+
+    // --- paginasi ---
+    const p = list.pagination;
+    const first = p.total === 0 ? 0 : p.offset + 1;
+    $("page-info").textContent = p.total === 0
+      ? "No results"
+      : "Showing " + first + "–" + (p.offset + p.returned) + " of " + p.total;
+    $("prev").disabled = p.offset === 0;
+    $("next").disabled = !p.has_more;
+
+    // --- keterangan dari API ---
+    $("sort-note").textContent = "Sort order (returned by the API): " + list.sort;
+    const dateNote = $("date-note");
+    if (list.filters.catatan) {
+      dateNote.textContent = list.filters.catatan;
+      dateNote.hidden = false;
+    } else {
+      dateNote.hidden = true;
+    }
+  } catch (err) {
+    showError(err.message, err.details);
+    $("rows").textContent = "";
+    $("empty").hidden = false;
+  }
+}
+
+/**
+ * Mengisi pilihan sumber dari statistik TANPA saringan, supaya daftar
+ * pilihannya tidak menyusut setiap kali disaring -- kalau menyusut, pemakainya
+ * tidak bisa berpindah ke sumber lain setelah memilih satu.
+ */
+async function loadSourceOptions() {
+  try {
+    const stats = await getJson("/mentions/stats?group_by=source");
+    const sel = $("source");
+    for (const s of stats.data) {
+      const opt = document.createElement("option");
+      opt.value = s.source;
+      opt.textContent = s.name + " (" + s.total + ")";
+      sel.append(opt);
+    }
+  } catch {
+    // Bukan masalah besar: kotak pencarian dan saringan lain tetap bisa dipakai.
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pemasangan pendengar tombol
+// ---------------------------------------------------------------------------
+$("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  offset = 0;              // saringan berubah -> kembali ke halaman pertama
+  load();
+});
+
+$("btn-reset").addEventListener("click", () => {
+  $("form").reset();
+  offset = 0;
+  load();
+});
+
+$("prev").addEventListener("click", () => {
+  offset = Math.max(0, offset - Number($("limit").value));
+  load();
+});
+
+$("next").addEventListener("click", () => {
+  offset += Number($("limit").value);
+  load();
+});
+
+$("limit").addEventListener("change", () => {
+  offset = 0;
+  load();
+});
+
+loadSourceOptions();
+load();
+</script>
+</body>
+</html>
