@@ -8,6 +8,7 @@
 import Fastify from 'fastify';
 import { ingestMentions } from './ingest.js';
 import { parseSearchQuery, searchMentions } from './search.js';
+import { getStats, parseStatsQuery } from './stats.js';
 import { pool } from './db.js';
 
 export function buildServer() {
@@ -81,6 +82,25 @@ export function buildServer() {
     }
 
     return reply.send(await searchMentions(params));
+  });
+
+  // -------------------------------------------------------------------------
+  // GET /mentions/stats
+  //
+  //   ?group_by=source   jumlah berita per koran/platform
+  //   ?group_by=day      jumlah berita per hari (menurut waktu Malaysia)
+  //
+  // Menerima saringan yang sama dengan GET /mentions (q, source, from, to),
+  // supaya grafik di dashboard bisa mengikuti saringan yang sedang aktif.
+  // -------------------------------------------------------------------------
+  app.get('/mentions/stats', async (request, reply) => {
+    const { params, errors } = parseStatsQuery((request.query ?? {}) as Record<string, unknown>);
+
+    if (params === null) {
+      return reply.code(400).send({ error: 'Parameter statistik tidak valid.', detail: errors });
+    }
+
+    return reply.send(await getStats(params));
   });
 
   // Menutup pool sambungan database saat server dimatikan, supaya proses
