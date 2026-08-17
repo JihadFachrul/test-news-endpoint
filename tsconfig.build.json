@@ -1,0 +1,17 @@
+{
+  // Konfigurasi khusus untuk `npm run build`.
+  //
+  // Dipisah dari tsconfig.json karena yang itu juga memeriksa folder tests/,
+  // dan berkas tes membutuhkan tipe dari vitest. Kalau tes ikut dibangun,
+  // `npm ci --omit=dev` diikuti `npm run build` akan gagal di komputer
+  // penilai -- padahal itu cara yang wajar untuk memasang aplikasi produksi.
+  //
+  // Jadi: tsconfig.json untuk memeriksa (npm run typecheck),
+  //       tsconfig.build.json untuk menghasilkan (npm run build).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"]
+}

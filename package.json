@@ -10,8 +10,9 @@
     "db:setup": "tsx scripts/setup-db.ts",
     "ingest": "tsx scripts/ingest-seed.ts",
     "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/src/main.js",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
   "devDependencies": {
