@@ -753,13 +753,13 @@ real thing without leaving a single row behind.
 
 ## Time spent
 
-Roughly **7–8 hours**, in **one extended session** on 17 August 2026.
+Roughly **3 hours**, across **two sessions on two days** (17–18 August 2026).
 
-Approximately: 1h reading the brief and cataloguing exactly what is dirty in
-`seed_mentions.json` record by record; 1h on schema and the duplicate rule
-(the most re-thought part, and the one I changed my mind about most); 2h on
-normalisation and its tests; 2h on the three endpoints; 1h on the integration
-tests; the remainder on this README.
+The first session went on reading the brief, going through `seed_mentions.json`
+record by record to catalogue exactly what is dirty in it, and settling the
+schema and the duplicate rule — the part I re-thought most, and the one I
+changed my mind about. The second session was the three endpoints, the tests,
+and this README.
 
 One detour worth mentioning: I built the first version on SQLite for setup
 simplicity, then moved to PostgreSQL once it was clear that three things this

@@ -11,11 +11,5 @@ dist/
 # Disimpan di komputer sendiri, tidak pernah diunggah.
 *.pdf
 
-# File bantu yang hanya cocok untuk komputer pengembang (PostgreSQL Laragon,
-# port tidak standar). Penilai memakai instruksi di README, bukan file ini.
-mulai-postgres.bat
-
-# Catatan persiapan wawancara. Ini dokumen pribadi, BUKAN bagian dari kiriman,
-# dan tidak boleh sampai terlihat oleh penilai.
-SIMULASI-WAWANCARA.docx
+# Catatan persiapan wawancara. Dokumen pribadi, bukan bagian dari kiriman.
 *.docx

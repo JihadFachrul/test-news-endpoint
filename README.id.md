@@ -764,15 +764,13 @@ menguji hal yang sebenarnya tanpa meninggalkan satu baris pun.
 
 ## Waktu yang dipakai
 
-<!-- PERIKSA SEBELUM MENGIRIM: sesuaikan angka di bawah dengan waktu Anda yang sebenarnya. -->
+Sekitar **3 jam**, dalam **dua sesi di dua hari** (17–18 Agustus 2026).
 
-Sekitar **7–8 jam**, dalam **satu sesi panjang** pada 17 Agustus 2026.
-
-Perkiraannya: 1 jam membaca brief dan mendata persis apa saja yang kotor di
-`seed_mentions.json` record per record; 1 jam untuk skema dan aturan duplikat
-(bagian yang paling banyak dipikir ulang, dan yang paling sering saya ubah
-pendirian); 2 jam untuk pembersihan data beserta tesnya; 2 jam untuk ketiga
-endpoint; 1 jam untuk tes integrasi; sisanya untuk README ini.
+Sesi pertama habis untuk membaca brief, menyusuri `seed_mentions.json` record
+per record untuk mendata persis apa saja yang kotor di dalamnya, lalu menetapkan
+skema dan aturan duplikat — bagian yang paling banyak dipikir ulang, dan yang
+membuat saya mengubah pendirian. Sesi kedua untuk ketiga endpoint, tesnya, dan
+README ini.
 
 Satu jalan memutar yang perlu disebut: versi pertama saya bangun di atas SQLite
 demi kemudahan pemasangan, lalu pindah ke PostgreSQL setelah jelas bahwa tiga
