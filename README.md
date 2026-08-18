@@ -314,29 +314,6 @@ across three timezone conventions, an indexed generated search column, and
 database-enforced constraints — are exactly what SQLite does not give. The commit
 history shows that reversal.
 
----
 
-## With another week, I would…
 
-1. **Add the URL-based second duplicate check** — the current rule catches the
-   same article under different URLs, not the inverse (same URL, headline
-   reworded by the desk). `canonical_url` is already stored and indexed for it.
-   First thing I would do.
-2. **Switch to keyset pagination**, keeping `LIMIT`/`OFFSET` only for "jump to
-   page N".
-3. **Batch the inserts** — one multi-row `INSERT … ON CONFLICT`.
-4. **Add a raw-payload table and numbered migrations**, making the whole
-   normalisation layer replayable from the archive.
-5. **Improve search** — `pg_trgm` for prefix matching, dictionary per detected
-   language, and a relevance score so results can be ranked.
-6. **Monitor feed health.** Ingest already reports per-record warnings;
-   aggregating them over time turns a debugging aid into monitoring. A silently
-   degrading upstream feed is the most likely real-world failure here.
 
----
-
-## Deliberately not built
-
-Per the brief: no authentication, CI, Kubernetes, ML, or exhaustive coverage.
-Docker Compose is omitted too — the service needs only Node and a connection
-string, so it would have made setup longer, not shorter.

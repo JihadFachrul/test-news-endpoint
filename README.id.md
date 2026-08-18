@@ -327,33 +327,4 @@ pencarian ber-index yang dikelola database sendiri, dan aturan yang ditegakkan
 database — persis yang tidak diberikan SQLite. Riwayat commit memuat perubahan
 pendirian itu.
 
----
 
-## Kalau ada seminggu lagi
-
-1. **Menambah pemeriksa duplikat kedua berbasis URL** — aturan sekarang
-   menangkap artikel sama di URL berbeda, belum kebalikannya (URL sama, judul
-   diedit redaksi). `canonical_url` sudah disimpan dan diberi index untuk itu.
-   Ini yang pertama saya kerjakan.
-2. **Pindah ke paginasi berbasis kunci**, menyisakan `LIMIT`/`OFFSET` hanya
-   untuk "langsung ke halaman N".
-3. **Menggabungkan perintah INSERT** jadi satu `INSERT … ON CONFLICT` banyak
-   baris.
-4. **Menambah tabel data mentah dan migration bernomor**, supaya seluruh lapisan
-   pembersihan bisa dijalankan ulang dari arsipnya.
-5. **Memperbaiki pencarian** — `pg_trgm` untuk pencocokan awalan kata, kamus
-   sesuai bahasa yang terdeteksi, dan nilai relevansi supaya hasilnya bisa
-   diperingkat.
-6. **Memantau kesehatan sumber data.** Pemasukan data sudah melaporkan
-   peringatan per record; mengumpulkannya sepanjang waktu mengubah alat bantu
-   penelusuran jadi pemantauan. Sumber data yang perlahan rusak adalah kegagalan
-   yang paling mungkin terjadi di sini.
-
----
-
-## Yang sengaja tidak dibuat
-
-Sesuai brief: tanpa autentikasi, CI, Kubernetes, ML, atau cakupan tes
-berlebihan. Docker Compose juga tidak disertakan — layanan ini hanya butuh Node
-dan satu alamat sambungan, jadi menambahkannya akan membuat pemasangan lebih
-panjang, bukan lebih singkat.
