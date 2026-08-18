@@ -22,32 +22,43 @@
 <!-- Ikon ditanam langsung sebagai data URI. Tanpa ini browser meminta
      /favicon.ico, servernya menjawab 404, dan error itu muncul di console
      penilai yang membuka DevTools. -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230b6bcb'/%3E%3Crect x='3' y='9' width='2.5' height='4' fill='white'/%3E%3Crect x='6.75' y='6' width='2.5' height='7' fill='white'/%3E%3Crect x='10.5' y='3' width='2.5' height='10' fill='white'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23d97706'/%3E%3Crect x='3' y='9' width='2.5' height='4' fill='white'/%3E%3Crect x='6.75' y='6' width='2.5' height='7' fill='white'/%3E%3Crect x='10.5' y='3' width='2.5' height='10' fill='white'/%3E%3C/svg%3E">
 <style>
+  /*
+     Warna dipisah sebagai variabel supaya tema terang dan gelap cuma perlu
+     mengganti nilainya, bukan mengulang seluruh aturan CSS.
+
+     --accent-fg ada karena warna teks di atas tombol harus ikut berubah:
+     di tema terang tombolnya oranye tua dengan teks putih, di tema gelap
+     oranye terang dengan teks hampir hitam. Kalau teksnya dipaksa putih di
+     kedua tema, di tema gelap jadi nyaris tak terbaca.
+  */
   :root {
-    --bg: #f6f7f9;
+    --bg: #f8f7f4;
     --panel: #ffffff;
-    --border: #dfe3e8;
-    --text: #1c2128;
-    --muted: #656d76;
-    --accent: #0b6bcb;
-    --bar: #0b6bcb;
-    --bar-alt: #7a8794;
-    --danger: #b42318;
-    --code-bg: #eef1f4;
+    --border: #e4ded4;
+    --text: #1f1b16;
+    --muted: #6b6158;
+    --accent: #b45309;
+    --accent-fg: #ffffff;
+    --bar: #d97706;
+    --bar-alt: #a8a29e;
+    --danger: #b02a37;
+    --code-bg: #f1ece4;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0f1216;
-      --panel: #171b21;
-      --border: #2b323b;
-      --text: #e3e6ea;
-      --muted: #98a1ab;
-      --accent: #6cb2ff;
-      --bar: #4a90d9;
-      --bar-alt: #5b6672;
-      --danger: #ff8a7a;
-      --code-bg: #10141a;
+      --bg: #121110;
+      --panel: #1a1917;
+      --border: #302c27;
+      --text: #ece7e0;
+      --muted: #9b9188;
+      --accent: #f59e0b;
+      --accent-fg: #1a1206;
+      --bar: #e08c1a;
+      --bar-alt: #7a6f66;
+      --danger: #ff7a7a;
+      --code-bg: #0e0d0c;
     }
   }
 
@@ -91,27 +102,24 @@
   button {
     font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
     padding: 8px 16px; border-radius: 6px;
-    border: 1px solid var(--accent); background: var(--accent); color: #fff;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg);
   }
   button.ghost { background: transparent; color: var(--text); border-color: var(--border); }
   button:disabled { opacity: .45; cursor: not-allowed; }
 
-  /* ---- the request URLs, so they can be copied into curl ---- */
-  .requests { font-size: 12px; color: var(--muted); margin-top: 14px;
-              border-top: 1px solid var(--border); padding-top: 12px; }
-  /* Hanya URL-nya yang jadi blok sendiri. Kalau aturan ini dipasang ke semua
-     <code> di dalam .requests, kata "curl" yang ada di tengah kalimat ikut
-     terdorong ke barisnya sendiri dan kalimatnya jadi terpotong-potong. */
-  .requests code.url {
-    display: block; margin-top: 4px;
-    overflow-x: auto; white-space: nowrap;
-  }
+  /* ---- alamat permintaan, supaya bisa disalin ke curl ---- */
+  .requests { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .requests .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                   letter-spacing: .05em; font-weight: 600; }
   code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: .92em; background: var(--code-bg); color: var(--text);
     padding: 2px 5px; border-radius: 4px;
   }
-  .requests code.url { padding: 6px 8px; font-size: 12px; }
+  .requests code.url {
+    display: block; margin-top: 5px; padding: 6px 8px; font-size: 12px;
+    overflow-x: auto; white-space: nowrap;
+  }
 
   /* ---- stat tiles ---- */
   .tiles { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
@@ -133,7 +141,11 @@
   .row .fill.alt { background: var(--bar-alt); }
   .row .val { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums;
               color: var(--muted); }
-  .tz { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  /* Keterangan kecil di sebelah judul panel, mis. zona waktu grafik harian.
+     Ditaruh di judulnya, bukan sebagai kalimat penjelas di bawah grafik: satu
+     kata di tempat yang tepat lebih terbaca daripada satu paragraf. */
+  h2 .meta { text-transform: none; letter-spacing: 0; font-weight: 400;
+             color: var(--muted); opacity: .8; }
 
   /* ---- list ---- */
   .tablewrap { overflow-x: auto; }
@@ -170,17 +182,14 @@
 <div class="wrap">
 
   <h1>Media Monitoring</h1>
-  <p class="sub">
-    Read-only dashboard. Everything below is fetched from this service's own
-    <code>/mentions</code> and <code>/mentions/stats</code> endpoints.
-  </p>
+  <p class="sub">Read-only view of <code>/mentions</code> and <code>/mentions/stats</code>.</p>
 
   <!-- ---------------- filters ---------------- -->
   <div class="panel">
     <form class="filters" id="form">
       <div class="field grow">
-        <label for="q">Search (title + content)</label>
-        <input id="q" name="q" type="search" placeholder="e.g. ringgit, banjir, &quot;Bank Negara&quot;" autocomplete="off">
+        <label for="q">Search</label>
+        <input id="q" name="q" type="search" placeholder="ringgit, banjir, &quot;Bank Negara&quot;" autocomplete="off">
       </div>
       <div class="field">
         <label for="source">Source</label>
@@ -209,7 +218,7 @@
     </form>
 
     <div class="requests">
-      Requests being made — copy either into <code>curl</code>:
+      <span class="lbl">Requests</span>
       <code class="url" id="url-list">…</code>
       <code class="url" id="url-stats">…</code>
     </div>
@@ -221,11 +230,11 @@
   <div class="tiles">
     <div class="tile"><div class="n" id="t-total">–</div><div class="k">Mentions</div></div>
     <div class="tile"><div class="n" id="t-sources">–</div><div class="k">Sources</div></div>
-    <div class="tile"><div class="n" id="t-days">–</div><div class="k">Days covered</div></div>
-    <!-- Label menyebut "this page" dengan sengaja: angkanya dijumlahkan dari
-         baris yang sedang tampil saja. Menyebutnya "total" akan berbohong,
-         karena API tidak mengembalikan jumlah engagement seluruh hasil. -->
-    <div class="tile"><div class="n" id="t-eng">–</div><div class="k">Engagement (this page)</div></div>
+    <div class="tile"><div class="n" id="t-days">–</div><div class="k">Days</div></div>
+    <!-- Label menyebut "page" dengan sengaja: angkanya dijumlahkan dari baris
+         yang sedang tampil saja. Menyebutnya "total" akan berbohong, karena
+         API tidak mengembalikan jumlah engagement seluruh hasil. -->
+    <div class="tile"><div class="n" id="t-eng">–</div><div class="k">Engagement · page</div></div>
   </div>
 
   <div class="charts">
@@ -234,9 +243,8 @@
       <div class="bars" id="chart-source"></div>
     </div>
     <div class="panel">
-      <h2>By day</h2>
+      <h2>By day <span class="meta" id="tz"></span></h2>
       <div class="bars" id="chart-day"></div>
-      <p class="tz" id="tz"></p>
     </div>
   </div>
 
@@ -257,7 +265,7 @@
         <tbody id="rows"></tbody>
       </table>
     </div>
-    <div id="empty" class="empty" hidden>No mentions match these filters.</div>
+    <div id="empty" class="empty" hidden>No matches.</div>
 
     <div class="pager">
       <button type="button" class="ghost" id="prev">← Previous</button>
@@ -265,8 +273,11 @@
       <span class="info" id="page-info"></span>
     </div>
 
-    <p class="note" id="sort-note"></p>
-    <p class="note" id="date-note" hidden></p>
+    <!-- Hanya muncul saat saringan tanggal aktif, karena hanya saat itu ada
+         berita yang tersembunyi tanpa penjelasan. Kalimatnya sengaja satu
+         baris: yang perlu diberitahukan cuma bahwa ada yang tidak ikut, dan
+         kenapa. -->
+    <p class="note" id="date-note" hidden>Undated mentions are excluded by date filters.</p>
   </div>
 
 </div>
@@ -279,7 +290,6 @@
 // sisanya diambil dari form.
 // ---------------------------------------------------------------------------
 let offset = 0;
-let lastTotal = 0;
 
 const $ = (id) => document.getElementById(id);
 
@@ -465,8 +475,6 @@ async function load() {
       getJson(statsUrl("day")),
     ]);
 
-    lastTotal = list.pagination.total;
-
     // --- angka ringkas ---
     $("t-total").textContent = list.pagination.total.toLocaleString("en-GB");
     $("t-sources").textContent = String(bySource.data.length);
@@ -478,8 +486,10 @@ async function load() {
     // --- grafik ---
     drawBars($("chart-source"), bySource.data.map((d) => ({ label: d.name, value: d.total })), false);
     drawBars($("chart-day"), byDay.data.map((d) => ({ label: d.label, value: d.total })), true);
-    $("tz").textContent = "Days are counted in " + (byDay.timezone || "?") +
-      ". Mentions with no publication date get their own bucket rather than being dropped.";
+    // Zona waktunya dibaca dari respon API, bukan ditulis ulang di sini. Kalau
+    // ditulis ulang, suatu hari API-nya berubah dan halaman ini tetap
+    // menampilkan yang lama.
+    $("tz").textContent = byDay.timezone ? "· " + byDay.timezone : "";
 
     // --- daftar ---
     drawRows(list.data);
@@ -488,20 +498,16 @@ async function load() {
     const p = list.pagination;
     const first = p.total === 0 ? 0 : p.offset + 1;
     $("page-info").textContent = p.total === 0
-      ? "No results"
-      : "Showing " + first + "–" + (p.offset + p.returned) + " of " + p.total;
+      ? ""
+      : first + "–" + (p.offset + p.returned) + " of " + p.total;
     $("prev").disabled = p.offset === 0;
     $("next").disabled = !p.has_more;
 
-    // --- keterangan dari API ---
-    $("sort-note").textContent = "Sort order (returned by the API): " + list.sort;
-    const dateNote = $("date-note");
-    if (list.filters.catatan) {
-      dateNote.textContent = list.filters.catatan;
-      dateNote.hidden = false;
-    } else {
-      dateNote.hidden = true;
-    }
+    // Peringatan hanya dimunculkan saat saringan tanggal aktif, karena hanya
+    // saat itu ada berita yang tidak ikut tanpa penjelasan di layar. API
+    // mengembalikan alasannya di list.filters.catatan; halaman ini memakai
+    // kalimatnya sendiri yang lebih pendek.
+    $("date-note").hidden = !list.filters.catatan;
   } catch (err) {
     showError(err.message, err.details);
     $("rows").textContent = "";
