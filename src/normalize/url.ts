@@ -1,25 +1,14 @@
-/**
- * Merapikan alamat link, supaya dua link ke artikel yang sama jadi persis
- * sama.
- */
+/** Menyeragamkan alamat link, supaya dua link ke artikel yang sama jadi sama. */
 
-/**
- * Parameter yang menandai asal klik/kampanye iklan, bukan menandai artikelnya.
- * Dua link yang bedanya hanya di sini sebenarnya link ke artikel yang sama.
- */
+/** Parameter yang menandai kampanye iklan, bukan artikelnya. */
 const TRACKING_PARAM = /^(utm_|fb_)|^(fbclid|gclid|igshid|ref|ref_src|source)$/i;
 
 /**
- * Mengembalikan bentuk link yang sudah seragam, atau null kalau bukan link
- * http/https yang layak.
+ * Host jadi huruf kecil, "www." dibuang, tanda pagar dibuang, parameter iklan
+ * dibuang, sisanya diurutkan, garis miring di ujung dibuang.
  *
- * Yang dirapikan: nama host jadi huruf kecil, "www." dibuang, tanda pagar
- * (#bagian) dibuang, parameter iklan dibuang, parameter sisanya diurutkan,
- * dan garis miring di ujung dibuang.
- *
- * Huruf besar-kecil di BAGIAN JALUR sengaja dibiarkan, karena sebagian server
- * membedakannya, dan menyeragamkannya bisa menggabungkan dua artikel yang
- * sebenarnya berbeda.
+ * Huruf besar-kecil di jalur dibiarkan: sebagian server membedakannya, dan
+ * menyeragamkannya bisa menggabungkan dua artikel yang berbeda.
  */
 export function canonicalizeUrl(value: unknown): string | null {
   if (typeof value !== 'string' || value.trim().length === 0) return null;
@@ -45,7 +34,6 @@ export function canonicalizeUrl(value: unknown): string | null {
   return `${host}${path}${query}`;
 }
 
-/** Mengambil nama host dari sebuah link, mis. "thestar.com.my". */
 export function getHost(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   try {

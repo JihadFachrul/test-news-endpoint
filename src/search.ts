@@ -1,12 +1,4 @@
-/**
- * Mencari berita: GET /mentions
- *
- * Brief meminta minimal: pencarian kata kunci, saringan sumber, rentang
- * tanggal, paginasi, dan "urutan yang stabil dan terdokumentasi".
- *
- * Saringannya sendiri (q, source, from, to) ada di filters.ts, dipakai
- * bersama dengan endpoint statistik.
- */
+/** GET /mentions. Saringannya ada di filters.ts, dipakai bersama dengan stats. */
 import { pool } from './db.js';
 import {
   ambilTeks,
@@ -18,24 +10,16 @@ import {
 } from './filters.js';
 
 /**
- * URUTAN TAMPILAN RESMI. Ini yang dimaksud brief dengan "documented, stable
- * sort order", dan nilainya dikembalikan di setiap respon supaya tidak perlu
- * ditebak oleh pemakai API.
+ * Urutan tampilan resmi, dikembalikan di setiap respon supaya tidak ditebak.
  *
- *   published_at DESC   berita terbaru di atas -- yang diinginkan analis
- *   NULLS LAST          berita tanpa tanggal ditaruh di akhir, bukan di awal.
- *                       PostgreSQL secara bawaan menganggap NULL paling besar
- *                       pada urutan DESC, jadi tanpa ini berita tanpa tanggal
- *                       justru nangkring di halaman pertama.
- *   id DESC             PEMECAH SERI, dan ini bagian terpentingnya.
+ * NULLS LAST harus eksplisit: pada urutan DESC, PostgreSQL menganggap NULL
+ * sebagai nilai terbesar, jadi tanpa itu berita tanpa tanggal nangkring di
+ * halaman pertama.
  *
- * Kenapa pemecah seri wajib ada? Karena beberapa berita bisa punya
- * published_at yang sama persis. Kalau urutannya seri, PostgreSQL bebas
- * memilih urutan mana pun, dan urutannya boleh berbeda antar permintaan.
- * Akibatnya di halaman 2 bisa muncul berita yang sudah tampil di halaman 1,
- * sementara berita lain TIDAK PERNAH muncul di halaman mana pun.
- *
- * Karena id itu unik, menambahkannya di akhir membuat urutannya pasti.
+ * id DESC adalah pemecah seri. Beberapa berita bisa punya published_at sama
+ * persis; kalau seri, PostgreSQL bebas memilih urutan dan boleh berbeda antar
+ * permintaan -- sehingga halaman 2 mengulang isi halaman 1 sementara baris
+ * lain tidak pernah muncul di halaman mana pun.
  */
 export const SORT_ORDER = 'published_at DESC NULLS LAST, id DESC';
 
@@ -117,13 +101,9 @@ interface DbRow {
 export async function searchMentions(params: SearchParams): Promise<SearchResult> {
   const where = buildWhere(params);
 
-  // Dua perintah SQL: satu untuk mengambil isi halaman, satu untuk menghitung
-  // totalnya.
-  //
-  // Sebenarnya bisa jadi satu perintah dengan count(*) OVER (), tapi cara itu
-  // punya lubang: kalau offset-nya melewati baris terakhir, tidak ada baris
-  // yang kembali, sehingga totalnya ikut hilang dan terbaca 0. Dua perintah
-  // selalu benar, dengan harga satu perjalanan tambahan ke database.
+  // Dua perintah, bukan satu dengan count(*) OVER (). Cara itu punya lubang:
+  // kalau offset melewati baris terakhir, tidak ada baris yang kembali
+  // sehingga totalnya ikut hilang dan terbaca 0.
   const hitung = await pool.query<{ total: string }>(
     `SELECT count(*) AS total
      FROM mentions m JOIN sources s ON s.id = m.source_id
@@ -149,10 +129,8 @@ export async function searchMentions(params: SearchParams): Promise<SearchResult
     source: { slug: row.slug, name: row.display_name, platform: row.platform },
     external_id: row.external_id,
     title: row.title,
-    // Yang dikirim adalah content_clean, BUKAN content_raw. Data mentah masih
-    // berisi HTML dan pernah berisi kode berbahaya, jadi tidak pernah
-    // dikeluarkan lewat API. Aslinya tetap tersimpan di database untuk
-    // keperluan penelusuran.
+    // content_clean, bukan content_raw: data mentah masih berisi HTML dan
+    // pernah berisi kode berbahaya, jadi tidak pernah keluar lewat API.
     content: row.content_clean,
     url: row.url,
     author: row.author,

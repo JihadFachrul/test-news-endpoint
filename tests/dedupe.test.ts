@@ -1,10 +1,7 @@
 /**
- * Bagian paling berisiko di proyek ini: menentukan mana yang dianggap berita
- * yang sama.
- *
- * Tes di sini diuji langsung ke seed_mentions.json yang asli, bukan ke contoh
- * karangan. Jadi kalau aturannya bergeser, yang gagal adalah data yang memang
- * jadi alasan aturan ini dibuat.
+ * Aturan duplikat, diuji langsung ke seed_mentions.json yang asli dan bukan ke
+ * contoh karangan: kalau aturannya bergeser, yang gagal adalah data yang jadi
+ * alasan aturan ini dibuat.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -72,8 +69,8 @@ describe('mendeteksi duplikat di seluruh file data', () => {
   });
 
   it('berita sama dari DUA KORAN tetap dihitung dua', () => {
-    // Ini pengaman yang melindungi nilai produknya: analis harus tetap melihat
-    // bahwa The Star DAN NST sama-sama mengangkat data pariwisata itu.
+    // Pengaman yang melindungi nilai produknya: analis harus tetap melihat
+    // bahwa The Star DAN NST sama-sama mengangkatnya.
     expect(cari('str-99502').dedupeKey).not.toBe(cari('nst-40199').dedupeKey);
   });
 
@@ -83,12 +80,10 @@ describe('mendeteksi duplikat di seluruh file data', () => {
   });
 
   it('postingan tanpa judul memakai isi postingannya sebagai identitas', () => {
-    // Tweet judulnya null; postingan Facebook judulnya "" (teks kosong).
-    // Keduanya harus lewat jalur yang sama, bukan dihitung dari judul kosong.
+    // Tweet judulnya null, postingan Facebook "" (teks kosong). Kalau judul
+    // kosong tidak ditangani, keduanya bertabrakan gara-gara sama-sama kosong.
     expect(cari('tw-8812340091').title).toBeNull();
     expect(cari('fb_772341').title).toBeNull();
-    // Kalau judul kosong tidak ditangani, dua record ini akan bertabrakan
-    // gara-gara sama-sama berjudul kosong. Pastikan tidak.
     expect(cari('tw-8812340091').dedupeKey).not.toBe(cari('fb_772341').dedupeKey);
   });
 });

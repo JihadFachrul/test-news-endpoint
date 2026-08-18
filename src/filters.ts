@@ -1,47 +1,33 @@
 /**
- * Saringan yang dipakai BERSAMA oleh GET /mentions dan GET /mentions/stats.
+ * Saringan yang dipakai bersama oleh GET /mentions dan GET /mentions/stats.
  *
- * Kenapa disatukan di sini, bukan ditulis dua kali?
- *
- * Karena di sebuah dashboard, daftar berita dan grafik jumlahnya harus
- * mencerminkan saringan yang sama. Kalau kodenya ditulis dua kali, suatu hari
- * salah satunya akan diubah dan yang lain lupa diikutkan. Hasilnya: grafik
- * menunjukkan 8 berita sementara daftarnya memuat 12, dan analis kehilangan
- * kepercayaan pada seluruh alatnya.
- *
- * Dengan satu sumber kebenaran, ketidakcocokan itu mustahil terjadi.
+ * Disatukan bukan demi kerapian: di dashboard, grafik dan daftarnya harus
+ * mencerminkan saringan yang sama. Kalau ditulis dua kali, suatu hari salah
+ * satunya diubah dan yang lain lupa diikutkan.
  */
 import { parsePublishedAt } from './normalize/dates.js';
 import { normalizeSource } from './normalize/sources.js';
 
 export interface MentionFilters {
-  /** Kata kunci, dicari di judul dan isi berita. */
   q: string | null;
   /** Slug sumber yang sudah diseragamkan, mis. 'thestar'. */
   source: string | null;
-  /** Batas awal rentang tanggal (inklusif), sebagai teks ISO UTC. */
+  /** Teks ISO UTC. from inklusif, to eksklusif. */
   from: string | null;
-  /** Batas akhir rentang tanggal (eksklusif), sebagai teks ISO UTC. */
   to: string | null;
 }
 
-/** Penjelasan yang dikirim balik kalau saringan tanggal sedang aktif. */
 export const CATATAN_TANGGAL_KOSONG =
   'Berita yang tidak punya tanggal terbit tidak ikut dalam hasil bersaringan tanggal, ' +
   'karena tidak bisa dipastikan berada di dalam rentangnya. Lepas saringan tanggal untuk melihatnya.';
 
-/** Mengambil satu nilai teks dari parameter URL, atau null kalau kosong. */
 export function ambilTeks(nilai: unknown): string | null {
   if (typeof nilai !== 'string') return null;
   const bersih = nilai.trim();
   return bersih.length > 0 ? bersih : null;
 }
 
-/**
- * Membaca satu parameter angka, dengan batas bawah dan atas.
- * Dibatasi supaya satu permintaan tidak bisa meminta sejuta baris sekaligus
- * dan membuat server kepayahan.
- */
+/** Dibatasi supaya satu permintaan tidak bisa meminta sejuta baris sekaligus. */
 export function parseAngka(
   nilai: string,
   nama: string,
@@ -62,19 +48,12 @@ export function parseAngka(
 }
 
 /**
- * Membaca satu batas tanggal.
+ * Memakai pembaca tanggal yang sama dengan saat data masuk, jadi "2026-08-11"
+ * berarti hal yang sama di kedua tempat.
  *
- * Menggunakan ulang parsePublishedAt(), pembaca tanggal yang SAMA dengan yang
- * dipakai saat memasukkan data. Jadi "2026-08-11" berarti hal yang sama di
- * kedua tempat: tengah malam menurut waktu Malaysia.
- *
- * KHUSUS UNTUK BATAS AKHIR (to): kalau yang diisi hanya tanggal tanpa jam,
- * batasnya digeser ke tengah malam HARI BERIKUTNYA.
- *
- * Kenapa? Karena kalau analis mengisi from=2026-08-11 dan to=2026-08-11, yang
- * dia maksud jelas "berita tanggal 11 Agustus". Kalau to dibaca apa adanya
- * sebagai jam 00:00 tanggal 11, hasilnya nol berita -- benar secara harfiah,
- * tapi salah secara maksud, dan pemakainya akan menyangka datanya hilang.
+ * Khusus "to": kalau diisi tanggal tanpa jam, batasnya digeser ke tengah malam
+ * berikutnya. Kalau tidak, from=11 dan to=11 menghasilkan nol baris -- benar
+ * secara harfiah, salah secara maksud.
  */
 function parseBatasTanggal(
   nilai: string,
@@ -97,7 +76,6 @@ function parseBatasTanggal(
   return { iso: hasil.iso, error: null };
 }
 
-/** Membaca q, source, from, to dari parameter URL. */
 export function parseFilters(query: Record<string, unknown>): {
   filters: MentionFilters;
   errors: string[];
@@ -106,10 +84,9 @@ export function parseFilters(query: Record<string, unknown>): {
 
   const q = ambilTeks(query['q']);
 
-  // Nama sumber dilewatkan lewat penyeragam yang SAMA dengan saat data masuk.
-  // Jadi ?source=thestar, ?source=The Star, dan ?source=THE STAR semuanya
-  // menemukan koran yang sama. Kalau tidak begini, pemakai API harus tahu
-  // slug internal kita, padahal yang dia lihat di layar adalah nama aslinya.
+  // Dilewatkan penyeragam yang sama dengan saat data masuk, jadi ?source=The Star
+  // dan ?source=thestar menemukan koran yang sama. Tanpa ini, pemakai API harus
+  // tahu slug internal kita.
   const sourceRaw = ambilTeks(query['source']);
   const source = sourceRaw === null ? null : normalizeSource(sourceRaw, null).slug;
 
@@ -139,26 +116,19 @@ export function parseFilters(query: Record<string, unknown>): {
 }
 
 /**
- * Menyusun bagian WHERE beserta nilai-nilainya.
+ * Menyusun bagian WHERE. Semua nilai lewat parameter bernomor, tidak pernah
+ * ditempel ke teks SQL, jadi SQL injection mustahil.
  *
- * Semua nilai dimasukkan sebagai parameter bernomor ($1, $2, ...), TIDAK
- * pernah ditempel langsung ke dalam teks SQL. Itu yang membuat SQL injection
- * mustahil: PostgreSQL menerima nilainya sebagai data, bukan sebagai perintah.
- *
- * Mengandaikan tabelnya diberi alias `m` (mentions) dan `s` (sources).
+ * Mengandaikan tabelnya diberi alias `m` dan `s`.
  */
 export function buildWhere(filters: MentionFilters): { sql: string; values: unknown[] } {
   const syarat: string[] = [];
   const values: unknown[] = [];
 
   if (filters.q !== null) {
-    // websearch_to_tsquery membuat kotak pencarian kita berperilaku seperti
-    // mesin pencari yang sudah dikenal orang: beberapa kata berarti "semuanya
-    // harus ada", tanda kutip berarti frasa utuh, tanda minus berarti kecuali.
-    //
-    // Dipilih daripada to_tsquery karena to_tsquery melempar error kalau
-    // pemakai mengetik tanda baca sembarangan. Pencarian tidak boleh error
-    // hanya karena orang mengetik "ringgit!!".
+    // websearch_to_tsquery, bukan to_tsquery: perilakunya sudah dikenal orang
+    // (kutip = frasa, minus = kecuali) dan tidak melempar error kalau pemakai
+    // mengetik tanda baca sembarangan.
     values.push(filters.q);
     syarat.push(`m.search_tsv @@ websearch_to_tsquery('simple', $${values.length})`);
   }
@@ -168,15 +138,9 @@ export function buildWhere(filters: MentionFilters): { sql: string; values: unkn
     syarat.push(`s.slug = $${values.length}`);
   }
 
-  // Saringan tanggal: batas awal inklusif, batas akhir eksklusif.
-  //
-  // Berita yang published_at-nya NULL otomatis TIDAK ikut, karena perbandingan
-  // apa pun dengan NULL hasilnya bukan "benar".
-  //
-  // Itu memang yang kita inginkan, dan alasannya: kita tidak bisa membuktikan
-  // berita tanpa tanggal berada di dalam rentang yang diminta. Memasukkannya
-  // berarti mengarang. Berita itu tetap ada di database dan tetap ketemu kalau
-  // saringan tanggalnya dilepas.
+  // Berita tanpa tanggal otomatis tidak ikut, karena perbandingan dengan NULL
+  // tidak pernah benar. Itu memang yang diinginkan: kita tidak bisa
+  // membuktikan berita tanpa tanggal ada di dalam rentangnya.
   if (filters.from !== null) {
     values.push(filters.from);
     syarat.push(`m.published_at >= $${values.length}`);

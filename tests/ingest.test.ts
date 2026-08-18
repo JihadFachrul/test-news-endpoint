@@ -1,16 +1,9 @@
 /**
- * Menguji syarat paling keras dari brief: memasukkan data harus IDEMPOTENT.
+ * Idempotency, diuji ke database sungguhan karena yang diuji justru jaminan
+ * dari database (UNIQUE + ON CONFLICT), bukan logika di kode.
  *
- * Tes ini menyentuh database sungguhan, karena yang diuji justru jaminan yang
- * diberikan oleh database (UNIQUE + ON CONFLICT), bukan logika di kode. Kalau
- * database-nya dipalsukan, yang diuji jadi tiruannya, bukan hal yang sebenarnya
- * kita andalkan.
- *
- * Supaya tes tidak meninggalkan sampah: semuanya dijalankan di dalam satu
- * transaksi yang SELALU dibatalkan (ROLLBACK) di akhir. Jadi database kembali
- * persis seperti sebelum tes berjalan, bahkan kalau tesnya gagal.
- *
- * Prasyarat: `npm run db:setup` sudah pernah dijalankan.
+ * Semuanya dijalankan di dalam transaksi yang selalu dibatalkan, jadi tidak
+ * meninggalkan satu baris pun. Prasyarat: `npm run db:setup` sudah dijalankan.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

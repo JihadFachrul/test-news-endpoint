@@ -1,38 +1,18 @@
 /**
- * Angka untuk grafik dashboard: GET /mentions/stats
- *
- * Dua bentuk:
- *   ?group_by=source   jumlah berita per koran/platform
- *   ?group_by=day      jumlah berita per hari
- *
- * Saringannya (q, source, from, to) sama persis dengan GET /mentions, karena
- * memakai kode yang sama dari filters.ts. Itu penting: di dashboard, angka di
- * grafik harus cocok dengan jumlah baris di daftarnya.
+ * GET /mentions/stats — angka untuk grafik dashboard.
+ * Saringannya sama persis dengan GET /mentions karena memakai filters.ts.
  */
 import { pool } from './db.js';
 import { buildWhere, CATATAN_TANGGAL_KOSONG, parseFilters, type MentionFilters } from './filters.js';
 
 /**
- * ZONA WAKTU UNTUK MENGHITUNG "HARI".
+ * Zona waktu untuk menghitung "hari". Ditulis eksplisit, bukan mengandalkan
+ * pengaturan server, supaya hasilnya sama di komputer mana pun.
  *
- * Ini keputusan yang perlu dijelaskan, bukan bawaan yang kebetulan terpakai.
- *
- * Sebuah "hari" bukan besaran mutlak -- ia tergantung berdiri di mana. Berita
- * yang terbit jam 02:00 UTC itu masih hari yang sama di London, tapi sudah
- * jam 10:00 di Kuala Lumpur.
- *
- * Contoh nyata dari data kita: berita GDP Malaysiakini tersimpan sebagai
- * 2026-08-10 16:00 UTC.
- *   - dihitung UTC       -> masuk ember 10 Agustus
- *   - dihitung Malaysia  -> masuk ember 11 Agustus
- *
- * Yang benar adalah 11 Agustus, karena nilai aslinya di data feed memang
- * "11/08/2026", dan karena pemakai alat ini adalah analis PR di Malaysia yang
- * berpikir dalam hari lokal. Grafik yang menaruhnya di 10 Agustus akan tidak
- * cocok dengan apa yang dia baca di korannya pagi itu.
- *
- * Ditulis eksplisit, bukan mengandalkan pengaturan zona waktu server, supaya
- * hasilnya sama di laptop siapa pun dan di server mana pun.
+ * Sebuah hari tergantung berdiri di mana. Berita GDP tersimpan sebagai
+ * 2026-08-10 16:00 UTC: dihitung UTC masuk 10 Agustus, dihitung waktu Malaysia
+ * masuk 11 Agustus. Yang benar 11 Agustus, karena nilai asli di data feed
+ * memang "11/08/2026" dan pemakainya analis PR yang berpikir dalam hari lokal.
  */
 export const ZONA_WAKTU_LAPORAN = 'Asia/Kuala_Lumpur';
 
@@ -50,19 +30,17 @@ export interface BarisSumber {
 }
 
 export interface BarisHari {
-  /** Tanggal 'YYYY-MM-DD' menurut waktu Malaysia, atau null untuk yang tanpa tanggal. */
+  /** 'YYYY-MM-DD' waktu Malaysia, atau null untuk yang tanpa tanggal. */
   day: string | null;
-  /** Keterangan yang bisa langsung ditampilkan, terutama untuk ember tanpa tanggal. */
   label: string;
   total: number;
 }
 
 export interface StatsResult {
   group_by: GroupBy;
-  /** Hanya diisi untuk group_by=day, karena hanya di situ zona waktu berpengaruh. */
+  /** Hanya untuk group_by=day, karena hanya di situ zona waktu berpengaruh. */
   timezone?: string;
   filters: MentionFilters & { catatan?: string };
-  /** Jumlah seluruh berita yang lolos saringan. Harus sama dengan jumlah semua baris. */
   total: number;
   data: BarisSumber[] | BarisHari[];
 }
@@ -90,14 +68,8 @@ export function parseStatsQuery(query: Record<string, unknown>): {
 }
 
 /**
- * Jumlah berita per koran/platform.
- *
- * Urutannya: yang terbanyak dulu, lalu slug sebagai pemecah seri.
- *
- * Pemecah seri itu perlu di sini karena beberapa koran bisa punya jumlah yang
- * sama, dan tanpa pemecah seri urutannya bisa berubah-ubah antar permintaan.
- * Akibatnya batang-batang di grafik akan bertukar tempat setiap kali halaman
- * disegarkan, dan pemakainya menyangka alatnya rusak.
+ * Pemecah seri s.slug perlu karena beberapa koran bisa punya jumlah yang sama;
+ * tanpa itu batang grafiknya bertukar tempat setiap halaman disegarkan.
  */
 async function statistikPerSumber(params: StatsParams): Promise<BarisSumber[]> {
   const where = buildWhere(params);
@@ -124,22 +96,9 @@ async function statistikPerSumber(params: StatsParams): Promise<BarisSumber[]> {
 }
 
 /**
- * Jumlah berita per hari.
- *
- * Dua hal yang membuat ini tidak sesederhana "GROUP BY tanggal":
- *
- * 1. "AT TIME ZONE 'Asia/Kuala_Lumpur'" mengubah titik waktu absolut menjadi
- *    jam dinding Malaysia, baru kemudian diambil tanggalnya. Lihat penjelasan
- *    di ZONA_WAKTU_LAPORAN di atas.
- *
- * 2. Berita yang tanggalnya kosong TIDAK dibuang, tapi dikumpulkan di embernya
- *    sendiri (day = null).
- *
- *    Ini bagian yang paling mudah salah. Kalau baris tanpa tanggal dibuang
- *    diam-diam, jumlah seluruh batang di grafik akan LEBIH KECIL daripada
- *    jumlah berita yang sebenarnya ada -- dan tidak ada apa pun di layar yang
- *    memberi tahu bahwa ada yang hilang. Grafik yang menghilangkan data tanpa
- *    bilang-bilang itu grafik yang berbohong.
+ * Berita tanpa tanggal tidak dibuang, tapi masuk ember sendiri (day = null).
+ * Kalau dibuang diam-diam, jumlah batang di grafik jadi lebih kecil daripada
+ * jumlah berita yang ada, tanpa apa pun di layar yang memberi tahu.
  */
 async function statistikPerHari(params: StatsParams): Promise<BarisHari[]> {
   const where = buildWhere(params);
@@ -166,12 +125,8 @@ export async function getStats(params: StatsParams): Promise<StatsResult> {
       ? await statistikPerSumber(params)
       : await statistikPerHari(params);
 
-  // Total dihitung dari hasilnya sendiri, bukan lewat perintah SQL terpisah.
-  //
-  // Dengan begitu total DIJAMIN sama dengan jumlah semua baris. Kalau dihitung
-  // terpisah, dua perintah SQL bisa saja tidak sepakat -- misalnya karena ada
-  // data baru masuk di antara keduanya -- dan pemakainya melihat grafik yang
-  // batangnya tidak berjumlah sama dengan angka totalnya.
+  // Dihitung dari hasilnya sendiri, bukan query terpisah, supaya total dijamin
+  // sama dengan jumlah semua baris.
   const total = data.reduce((jumlah, baris) => jumlah + baris.total, 0);
 
   const filters: StatsResult['filters'] = {
@@ -185,9 +140,6 @@ export async function getStats(params: StatsParams): Promise<StatsResult> {
   }
 
   const hasil: StatsResult = { group_by: params.groupBy, filters, total, data };
-
-  // Zona waktu hanya disebutkan pada group_by=day, karena hanya di situ ia
-  // berpengaruh pada angkanya.
   if (params.groupBy === 'day') hasil.timezone = ZONA_WAKTU_LAPORAN;
 
   return hasil;

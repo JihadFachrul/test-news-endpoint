@@ -1,13 +1,7 @@
 /**
- * Menyeragamkan nama koran / platform.
- *
- * Di data feed, satu koran ditulis bermacam-macam:
- *     "The Star"  /  "thestar"
- *     "Malaysiakini"  /  "malaysiakini "   <- ada spasi di ujung
- *     "twitter"  /  "TWITTER"
- *
- * Kalau dibiarkan, endpoint /mentions/stats?group_by=source akan melaporkan
- * satu koran sebagai dua koran, dan grafik dashboard-nya jadi salah.
+ * Menyeragamkan nama koran. Di data feed satu koran ditulis bermacam ejaan
+ * ("The Star"/"thestar", "malaysiakini " berspasi, "twitter"/"TWITTER"), dan
+ * kalau dibiarkan, group_by=source akan menghitungnya sebagai beberapa koran.
  */
 import { getHost } from './url.js';
 
@@ -19,7 +13,6 @@ export interface Source {
   platform: Platform;
 }
 
-/** Daftar koran/platform yang sudah kita kenali. */
 const KNOWN: Record<string, Source> = {
   thestar: { slug: 'thestar', displayName: 'The Star', platform: 'news' },
   nst: { slug: 'nst', displayName: 'New Straits Times', platform: 'news' },
@@ -30,11 +23,6 @@ const KNOWN: Record<string, Source> = {
   instagram: { slug: 'instagram', displayName: 'Instagram', platform: 'instagram' },
 };
 
-/**
- * Dari nama host link -> koran mana.
- * Nama host itu BUKTI (link-nya benar-benar ke situ), sedangkan kolom "source"
- * hanya PENGAKUAN yang ditulis penyedia data.
- */
 const BY_HOST: Record<string, string> = {
   'thestar.com.my': 'thestar',
   'nst.com.my': 'nst',
@@ -46,7 +34,6 @@ const BY_HOST: Record<string, string> = {
   'instagram.com': 'instagram',
 };
 
-/** Dari tulisan bebas di kolom "source" -> koran mana. */
 const BY_LABEL: Record<string, string> = {
   'the star': 'thestar',
   thestar: 'thestar',
@@ -63,13 +50,7 @@ const BY_LABEL: Record<string, string> = {
   ig: 'instagram',
 };
 
-/**
- * Menyamakan bentuk tulisan sebelum dicocokkan: huruf kecil semua, tanda baca
- * jadi spasi, spasi berlebih dirapatkan.
- *
- * Ini yang membuat "malaysiakini " (dengan spasi di ujung), "Malaysiakini",
- * dan "MALAYSIAKINI" semuanya cocok ke satu baris yang sama.
- */
+/** Huruf kecil, tanda baca jadi spasi. Ini yang menutup ejaan berspasi/kapital. */
 function simplify(text: string): string {
   return text
     .toLowerCase()
@@ -78,18 +59,12 @@ function simplify(text: string): string {
 }
 
 /**
- * Menentukan koran/platform dari sebuah record.
+ * Host URL dicek DULU, baru kolom source. Record nst-40021 punya ID berlabel
+ * NST dan source "thestar" tapi URL-nya thestar.com.my: keterangan penyedia
+ * data bisa keliru, alamat tempat artikelnya tinggal tidak.
  *
- * URUTAN PENGECEKAN: nama host link DULU, baru tulisan di kolom "source".
- *
- * Alasannya ada di datanya: record "nst-40021" punya ID berlabel NST dan
- * kolom source berisi "thestar", tapi URL-nya thestar.com.my. Keterangan dari
- * penyedia data bisa keliru; alamat tempat artikelnya benar-benar tinggal
- * tidak bisa keliru.
- *
- * Keterbatasan yang kita terima: kalau link-nya berasal dari situs pengumpul
- * berita (misalnya news.google.com), yang terbaca adalah si pengumpul, bukan
- * korannya. Tidak ada kasus seperti itu di data ini.
+ * Keterbatasan: untuk link dari situs pengumpul berita (news.google.com), yang
+ * terbaca si pengumpul. Tidak ada kasus itu di data ini.
  */
 export function normalizeSource(label: unknown, url: unknown): Source {
   const host = getHost(url);
@@ -105,11 +80,9 @@ export function normalizeSource(label: unknown, url: unknown): Source {
     const known = KNOWN[BY_LABEL[simple] ?? ''];
     if (known) return known;
 
-    // Belum dikenali, tapi jelas ada namanya: dijadikan koran tersendiri.
-    //
-    // Sengaja TIDAK dilempar ke satu keranjang "lain-lain", karena itu akan
-    // menggabungkan koran-koran yang sebenarnya berbeda dan membuat laporan
-    // jangkauan berita jadi lebih kecil dari kenyataan.
+    // Belum dikenali tapi jelas ada namanya: jadi koran tersendiri. Kalau
+    // semuanya dilempar ke satu keranjang, koran yang berbeda akan tergabung
+    // dan laporan jangkauan jadi lebih kecil dari kenyataan.
     if (simple.length > 0) {
       return {
         slug: simple.replace(/\s+/g, '-'),

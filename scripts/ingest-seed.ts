@@ -1,12 +1,8 @@
 /**
- * Memasukkan seed_mentions.json ke database.
+ * Memasukkan seed_mentions.json. Jalankan: npm run ingest
  *
- * Jalankan: npm run ingest
- *
- * Ini jalan pintas untuk mencoba cepat tanpa perlu curl atau Postman. Logika
- * yang dipakai PERSIS SAMA dengan yang dipakai endpoint
- * POST /internal/mentions/bulk -- keduanya memanggil ingestMentions(), jadi
- * tidak ada jalur kode kedua yang bisa berbeda perilakunya.
+ * Jalan pintas untuk mencoba tanpa curl. Memanggil ingestMentions() yang sama
+ * dengan endpoint, jadi tidak ada jalur kode kedua yang bisa berbeda.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

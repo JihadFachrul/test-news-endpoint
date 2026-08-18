@@ -1,18 +1,12 @@
 <!doctype html>
 <!--
-  Halaman dashboard baca-saja.
+  Halaman dashboard baca-saja. Opsional menurut brief; gunanya supaya API ini
+  bisa dicoba tanpa membuka curl atau Postman. Satu berkas, tanpa build, tanpa
+  framework, tanpa memuat apa pun dari internet.
 
-  Opsional menurut brief dan tidak dinilai keindahannya. Gunanya satu:
-  supaya API ini bisa dicoba tanpa perlu membuka curl atau Postman.
-
-  Sengaja satu berkas tanpa proses build, tanpa framework, dan tanpa memuat
-  apa pun dari internet -- jadi tetap jalan walau penilainya sedang offline.
-
-  CATATAN KEAMANAN: seluruh teks dari API dimasukkan ke halaman lewat
-  textContent, BUKAN innerHTML. Jadi walaupun ada kode berbahaya yang lolos
-  dari pembersihan di sisi server, ia tetap tampil sebagai tulisan biasa dan
-  tidak bisa dijalankan. Ini lapis pertahanan kedua: satu record di data seed
-  memang menyelipkan <script>alert(1)</script>.
+  Keamanan: teks dari API masuk ke halaman lewat textContent, bukan innerHTML.
+  Kalau ada kode berbahaya yang lolos dari pembersihan di server, ia tampil
+  sebagai tulisan biasa dan tidak dijalankan.
 -->
 <html lang="en">
 <head>
@@ -182,7 +176,7 @@
 <div class="wrap">
 
   <h1>Media Monitoring</h1>
-  <p class="sub">Read-only view of <code>/mentions</code> and <code>/mentions/stats</code>.</p>
+  <p class="sub">Read only view of <code>/mentions</code> and <code>/mentions/stats</code>.</p>
 
   <!-- ---------------- filters ---------------- -->
   <div class="panel">

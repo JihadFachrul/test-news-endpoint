@@ -1,11 +1,8 @@
 /**
- * Menggabungkan semua langkah pembersihan menjadi satu baris siap simpan.
+ * Menggabungkan semua langkah pembersihan jadi satu baris siap simpan.
  *
- * Fungsi di file ini TIDAK menyentuh database sama sekali. Masuk data mentah,
- * keluar data bersih. Dua keuntungannya:
- *   1. gampang diuji (tidak perlu database untuk mengetesnya)
- *   2. kalau aturan pembersihan ternyata salah, kita bisa menjalankannya ulang
- *      atas kolom content_raw yang tersimpan, tanpa minta data dikirim ulang
+ * Fungsi murni, tidak menyentuh database: gampang diuji, dan bisa dijalankan
+ * ulang atas content_raw kalau aturannya perlu diperbaiki.
  */
 import { buildDedupeKey } from './dedupe.js';
 import { parsePublishedAt } from './dates.js';
@@ -23,16 +20,12 @@ export interface NormalizedMention {
   contentRaw: string | null;
   contentClean: string;
   author: string | null;
-  /** Waktu terbit sebagai teks ISO UTC, atau null kalau tidak diketahui. */
+  /** Teks ISO UTC, atau null kalau tidak diketahui. */
   publishedAt: string | null;
   publishedAtRaw: string | null;
   engagement: number | null;
   dedupeKey: string;
-  /**
-   * Catatan tentang record ini yang tidak sampai menggagalkannya. Dikembalikan
-   * oleh endpoint ingest, supaya data yang bermasalah kelihatan dan tidak
-   * hilang tanpa jejak.
-   */
+  /** Catatan yang tidak menggagalkan record, dikembalikan oleh endpoint ingest. */
   warnings: string[];
 }
 
@@ -45,7 +38,6 @@ export function normalizeMention(input: unknown): NormalizedMention {
   const raw = input as Record<string, unknown>;
   const warnings: string[] = [];
 
-  // --- koran / platform ----------------------------------------------------
   const url = emptyToNull(raw['url']);
   const source = normalizeSource(raw['source'], url);
   if (source.slug === 'unknown') {
@@ -54,13 +46,11 @@ export function normalizeMention(input: unknown): NormalizedMention {
     warnings.push(`sumber "${String(raw['source'])}" belum ada di daftar, dicatat sebagai "${source.slug}"`);
   }
 
-  // --- alamat link ---------------------------------------------------------
   const canonicalUrl = canonicalizeUrl(url);
   if (url !== null && canonicalUrl === null) {
     warnings.push('url bukan alamat http/https yang bisa dipakai');
   }
 
-  // --- judul dan isi -------------------------------------------------------
   const title = emptyToNull(htmlToText(raw['title']));
 
   const contentRaw = typeof raw['content'] === 'string' ? raw['content'] : null;
@@ -72,7 +62,6 @@ export function normalizeMention(input: unknown): NormalizedMention {
     warnings.push('mention tidak punya judul maupun isi');
   }
 
-  // --- tanggal terbit ------------------------------------------------------
   const rawDate = raw['published_at'];
   const date = parsePublishedAt(rawDate);
   if (date.format === 'tidak-ada') {
@@ -81,14 +70,12 @@ export function normalizeMention(input: unknown): NormalizedMention {
     warnings.push(`published_at "${String(rawDate)}" tidak bisa dibaca; disimpan sebagai kosong`);
   }
 
-  // --- angka engagement ----------------------------------------------------
   const rawEngagement = raw['engagement'];
   const engagement = parseEngagement(rawEngagement);
   if (rawEngagement !== null && rawEngagement !== undefined && engagement === null) {
     warnings.push(`engagement "${String(rawEngagement)}" bukan angka yang bisa dipakai; disimpan sebagai kosong`);
   }
 
-  // --- kunci duplikat ------------------------------------------------------
   const externalId = emptyToNull(raw['external_id']);
   const dedupeKey = buildDedupeKey({
     sourceSlug: source.slug,

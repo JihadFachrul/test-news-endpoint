@@ -1,11 +1,6 @@
 /**
- * Membuat tabel-tabel database dari db/schema.sql.
- *
- * Jalankan: npm run db:setup
- *
- * Aman dijalankan berulang kali: semua perintah di schema.sql memakai
- * "IF NOT EXISTS", jadi menjalankannya dua kali tidak merusak apa pun dan
- * tidak menghapus data yang sudah masuk.
+ * Membuat tabel dari db/schema.sql. Jalankan: npm run db:setup
+ * Aman diulang: semua perintah di schema.sql memakai IF NOT EXISTS.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -16,8 +11,7 @@ const SCHEMA_PATH = fileURLToPath(new URL('../db/schema.sql', import.meta.url));
 async function main(): Promise<void> {
   const schema = readFileSync(SCHEMA_PATH, 'utf8');
 
-  // Dibungkus satu transaksi: kalau ada satu perintah SQL yang gagal, tidak
-  // ada tabel setengah jadi yang tertinggal.
+  // Satu transaksi, supaya tidak ada tabel setengah jadi kalau ada yang gagal.
   await withTransaction(async (client) => {
     await client.query(schema);
   });

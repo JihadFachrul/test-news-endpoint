@@ -1,10 +1,8 @@
 /**
- * Semua record di seed_mentions.json punya URL yang hostnya kita kenali, jadi
- * jalur "baca dari nama sumber" tidak pernah dipakai di sana. Padahal jalur
- * itulah yang menangani nama berantakan seperti "malaysiakini " (dengan spasi).
- *
- * Tanpa tes ini, bagian tersebut jadi kode yang tidak pernah teruji dan baru
- * pertama kali berjalan nanti, di data yang belum pernah kita lihat.
+ * Semua record di seed_mentions.json punya URL yang hostnya dikenali, jadi
+ * jalur "baca dari nama sumber" tidak pernah dipakai di sana. Tanpa tes ini,
+ * bagian itu jadi kode yang baru pertama kali berjalan di data yang belum
+ * pernah dilihat siapa pun.
  */
 import { describe, expect, it } from 'vitest';
 import { normalizeSource } from '../src/normalize/sources.js';

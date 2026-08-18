@@ -1,15 +1,7 @@
 /**
- * Menguji GET /mentions/stats.
- *
- * Dua hal yang paling berbahaya di endpoint statistik, dan keduanya TIDAK
- * memunculkan error apa pun kalau salah:
- *
- *   1. baris tanpa tanggal dibuang diam-diam, sehingga jumlah batang di grafik
- *      lebih kecil daripada jumlah berita yang sebenarnya ada
- *   2. hari dihitung memakai zona waktu yang salah, sehingga berita masuk ke
- *      ember hari yang salah
- *
- * Keduanya diuji secara eksplisit di bawah.
+ * GET /mentions/stats. Dua kesalahan paling berbahaya di sini tidak memunculkan
+ * error apa pun: baris tanpa tanggal dibuang diam-diam, dan hari dihitung
+ * memakai zona waktu yang salah. Keduanya diuji eksplisit di bawah.
  *
  * Prasyarat: `npm run db:setup` sudah pernah dijalankan.
  */

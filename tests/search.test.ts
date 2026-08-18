@@ -1,16 +1,7 @@
 /**
- * Menguji GET /mentions.
- *
- * Yang diuji dipilih berdasarkan "kalau ini salah, apakah kelihatan?".
- * Yang paling berbahaya justru yang tidak kelihatan:
- *   - urutan yang tidak stabil: berita bisa hilang antar halaman tanpa
- *     error apa pun
- *   - batas "to" yang salah baca: hasilnya nol, dan pemakai menyangka
- *     datanya hilang
- *   - berita tanpa tanggal: kalau ikut terhitung, angkanya jadi bohong
- *
- * Tes ini memakai database sungguhan dan datanya dimasukkan sendiri, lalu
- * seluruhnya dibatalkan (ROLLBACK) di akhir supaya tidak meninggalkan sampah.
+ * GET /mentions. Yang diuji dipilih dari "kalau ini salah, apakah kelihatan?":
+ * urutan yang tidak stabil, batas "to" yang salah baca, dan berita tanpa
+ * tanggal -- ketiganya salah tanpa melempar error apa pun.
  *
  * Prasyarat: `npm run db:setup` sudah pernah dijalankan.
  */
@@ -25,14 +16,9 @@ const seed = JSON.parse(
   readFileSync(fileURLToPath(new URL('../seed_mentions.json', import.meta.url)), 'utf8'),
 ) as unknown[];
 
-/**
- * searchMentions() memakai pool (bukan satu client tetap), jadi datanya harus
- * benar-benar tersimpan supaya bisa dibaca. Karena itu pola ROLLBACK per tes
- * tidak bisa dipakai di sini.
- *
- * Gantinya: tabel dibersihkan sebelum tes, data seed dimasukkan sekali, lalu
- * dibersihkan lagi setelah semua tes selesai.
- */
+// searchMentions() memakai pool, bukan satu client tetap, jadi datanya harus
+// benar-benar tersimpan dan pola ROLLBACK per tes tidak bisa dipakai di sini.
+// Gantinya tabel dibersihkan sebelum dan sesudah seluruh berkas.
 beforeAll(async () => {
   try {
     await pool.query('SELECT 1');
@@ -200,13 +186,11 @@ describe('pencarian kata kunci', () => {
 
   it('KETERBATASAN YANG DISADARI: bentuk kata tidak dicocokkan', async () => {
     // Kamus 'simple' tidak mengenal tata bahasa, jadi "flood" tidak menemukan
-    // "floods". Ini harga dari memilih kamus yang aman untuk teks campur
-    // Inggris-Melayu, dan sengaja ditulis sebagai tes supaya keterbatasannya
-    // tercatat -- bukan ditemukan mendadak oleh pemakai.
+    // "floods". Ditulis sebagai tes supaya keterbatasannya tercatat, dan supaya
+    // ada yang gagal kalau kamusnya nanti diganti.
     //
-    // Diuji dengan membandingkan DOKUMEN yang ketemu, bukan jumlahnya:
-    // kebetulan keduanya sama-sama menemukan satu berita, tapi berita yang
-    // berbeda.
+    // Dibandingkan per dokumen, bukan per jumlah: keduanya kebetulan
+    // sama-sama menemukan satu berita, tapi berita yang berbeda.
     const tunggal = await cari({ q: 'flood' });
     const jamak = await cari({ q: 'floods' });
 
@@ -214,10 +198,6 @@ describe('pencarian kata kunci', () => {
       'Opinion: The flood problem is a planning problem',
     ]);
     expect(jamak.data.map((d) => d.title)).toEqual(['Flash floods hit parts of Klang Valley']);
-
-    // Intinya: mencari "flood" TIDAK menemukan berita berjudul "Flash floods".
-    // Kalau nanti kamusnya diganti ke 'english', tes ini akan gagal, dan itu
-    // memang tandanya bahwa perilakunya berubah.
     expect(tunggal.data.some((d) => d.title?.includes('Flash floods'))).toBe(false);
   });
 });

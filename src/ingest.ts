@@ -1,19 +1,9 @@
 /**
- * Memasukkan data massal (bulk ingest).
+ * Memasukkan data massal. Endpoint ini wajib idempotent: kirim file yang sama
+ * berkali-kali, jumlah barisnya tidak boleh bertambah.
  *
- * Inilah tempat syarat paling keras dari brief dipenuhi: ENDPOINT INI HARUS
- * IDEMPOTENT. Kirim file yang sama dua kali, sepuluh kali, jumlah baris di
- * database tidak boleh bertambah. Pipeline asli mereka suka mencoba ulang
- * kalau gagal di tengah jalan, jadi ini bukan syarat teoretis.
- *
- * Prosesnya dipisah dua tahap, dan pemisahan itu disengaja:
- *
- *   TAHAP 1  prepareMentions()  membersihkan data, TIDAK menyentuh database
- *   TAHAP 2  storeMentions()    menyimpan, butuh sambungan database
- *
- * Kenapa dipisah? Karena tahap 1 jadi bisa diuji tanpa database sama sekali,
- * dan tahap 2 bisa diuji di dalam transaksi yang lalu dibatalkan, sehingga
- * tes tidak meninggalkan sampah di database.
+ * Dipisah dua tahap supaya tahap pembersihan bisa diuji tanpa database, dan
+ * tahap penyimpanan bisa diuji di dalam transaksi yang lalu dibatalkan.
  */
 import type { PoolClient } from 'pg';
 import { withTransaction } from './db.js';
@@ -23,15 +13,13 @@ import {
   type NormalizedMention,
 } from './normalize/mention.js';
 
-/** Catatan tentang satu record yang tidak sampai menggagalkannya. */
 export interface RecordWarning {
-  /** Posisi record di dalam array yang dikirim (mulai dari 0). */
+  /** Posisi record di dalam array yang dikirim, mulai dari 0. */
   index: number;
   externalId: string | null;
   messages: string[];
 }
 
-/** Record yang bentuknya rusak sehingga tidak bisa diproses sama sekali. */
 export interface RecordError {
   index: number;
   message: string;
@@ -44,30 +32,23 @@ export interface PreparedBatch {
 }
 
 export interface IngestReport {
-  /** Berapa record yang kami terima. */
   received: number;
-  /** Berapa yang jadi baris BARU. */
+  /** Jadi baris baru. */
   inserted: number;
-  /** Berapa yang ternyata duplikat, jadi digabung ke baris yang sudah ada. */
+  /** Ternyata duplikat, digabung ke baris yang sudah ada. */
   merged: number;
-  /** Berapa yang bentuknya rusak sehingga dilewati. */
+  /** Bentuknya rusak, dilewati. */
   invalid: number;
   errors: RecordError[];
   warnings: RecordWarning[];
 }
 
-// ===========================================================================
-// TAHAP 1 - membersihkan (tanpa database)
-// ===========================================================================
-
 /**
- * Membersihkan seluruh record, dan memisahkan yang rusak.
+ * Membersihkan seluruh record dan memisahkan yang rusak.
  *
- * Record yang bentuknya rusak DILEWATI, bukan membatalkan seluruh kiriman.
- * Alasannya praktis: record rusak akan tetap rusak berapa kali pun dicoba
- * ulang, jadi kalau ia membatalkan seluruh kiriman, satu record busuk bisa
- * menyandera 14 record sehat selamanya. Yang rusak dilaporkan balik supaya
- * kelihatan, tidak hilang tanpa jejak.
+ * Record rusak dilewati, bukan membatalkan kiriman: dia akan tetap rusak
+ * berapa kali pun dicoba ulang, jadi kalau membatalkan semuanya, satu record
+ * busuk menyandera 14 yang sehat selamanya.
  */
 export function prepareMentions(records: unknown[]): PreparedBatch {
   const valid: NormalizedMention[] = [];
@@ -90,17 +71,7 @@ export function prepareMentions(records: unknown[]): PreparedBatch {
   return { valid, errors, warnings };
 }
 
-// ===========================================================================
-// TAHAP 2 - menyimpan ke database
-// ===========================================================================
-
-/**
- * Mendaftarkan koran/platform, lalu mengembalikan id-nya.
- *
- * Dipakai "ON CONFLICT ... DO UPDATE", bukan "DO NOTHING". Alasannya teknis:
- * DO NOTHING tidak mengembalikan baris apa pun kalau datanya sudah ada,
- * sehingga kita tidak dapat id-nya. DO UPDATE selalu mengembalikan baris.
- */
+/** DO UPDATE, bukan DO NOTHING: DO NOTHING tidak mengembalikan id kalau sudah ada. */
 const SQL_UPSERT_SOURCE = `
   INSERT INTO sources (slug, display_name, platform)
   VALUES ($1, $2, $3)
@@ -109,40 +80,19 @@ const SQL_UPSERT_SOURCE = `
 `;
 
 /**
- * Menyimpan satu mention.
+ * ON CONFLICT (dedupe_key) inilah jantung syarat idempotent. Aturan
+ * penggabungan per kolom:
  *
- * "ON CONFLICT (dedupe_key)" inilah jantung syarat idempotent. Kalau sidik
- * jarinya sudah ada, database TIDAK membuat baris baru, tapi menggabungkan
- * data ke baris yang sudah ada.
+ *   engagement       terbesar     like/share hanya bertambah (412 -> 415 -> 1204)
+ *   published_at     paling awal  waktu terbit asli cuma satu; selisih menit
+ *                                 antar salinan itu jeda robot pengumpul
+ *   published_at_raw yang sepadan dengan published_at terpilih, supaya kolom
+ *                    audit tidak menampilkan nilai dari salinan lain
+ *   author/title/url yang lama dipertahankan, yang kosong diisi dari salinan
+ *   isi berita       yang lebih panjang, karena biasanya lebih lengkap
  *
- * ATURAN PENGGABUNGANNYA, beserta alasan masing-masing:
- *
- * - engagement: diambil yang TERBESAR.
- *   Jumlah like/share hanya bertambah seiring waktu, jadi angka tertinggi
- *   adalah pengukuran terbaru. Di data: 412 -> 415 -> 1204.
- *
- * - published_at: diambil yang PALING AWAL.
- *   Waktu terbit asli sebuah artikel cuma satu. Selisih beberapa menit antar
- *   salinan itu cuma jeda robot pengumpul data, bukan penerbitan ulang.
- *
- * - published_at_raw: diambil yang SEPADAN dengan published_at yang dipilih.
- *   Kalau tidak dijaga, kolom audit ini bisa berisi nilai mentah dari salinan
- *   lain, dan justru menyesatkan orang yang sedang menelusuri masalah.
- *
- * - author, title, url, external_id: yang lama dipertahankan, yang kosong
- *   DIISI dari salinan. Contoh nyatanya di data: str-99120 punya penulis
- *   "Aisyah Rahman", sedangkan salinannya nst-40021 penulisnya null.
- *
- * - isi berita: yang LEBIH PANJANG yang menang, karena biasanya lebih
- *   lengkap. Bandingkan str-99120 ("...buoyed by improved sentiment.")
- *   dengan nst-40021 yang isinya terpotong.
- *
- * - times_seen: ditambah satu.
- *
- * CATATAN tentang GREATEST dan LEAST di PostgreSQL: keduanya MENGABAIKAN
- * nilai NULL, dan hanya menghasilkan NULL kalau semua isinya NULL. Jadi
- * GREATEST(412, NULL) = 412. Itu persis yang kita butuhkan: kalau salah satu
- * salinan tidak punya nilai, nilai dari salinan lain yang dipakai.
+ * GREATEST dan LEAST di PostgreSQL mengabaikan NULL, jadi GREATEST(412, NULL)
+ * hasilnya 412 -- persis perilaku "isi dari salinan yang punya nilai".
  */
 const SQL_UPSERT_MENTION = `
   INSERT INTO mentions (
@@ -180,19 +130,15 @@ const SQL_UPSERT_MENTION = `
 `;
 
 /**
- * Menyimpan hasil pembersihan ke database.
- *
- * Menerima `client` dari luar, bukan mengambil sendiri dari pool. Ini supaya
- * pemanggilnya yang menentukan batas transaksinya: endpoint membungkusnya
- * dalam transaksi yang di-commit, sedangkan tes membungkusnya dalam transaksi
- * yang dibatalkan, jadi tes tidak meninggalkan data sampah.
+ * Menerima client dari luar, bukan mengambil sendiri dari pool, supaya
+ * pemanggilnya yang menentukan batas transaksi: endpoint meng-commit, tes
+ * membatalkan sehingga tidak meninggalkan data sampah.
  */
 export async function storeMentions(
   client: PoolClient,
   mentions: NormalizedMention[],
 ): Promise<{ inserted: number; merged: number }> {
-  // Koran didaftarkan sekali per koran, bukan sekali per berita. Untuk 15
-  // berita dari 6 koran, ini 6 perintah SQL, bukan 15.
+  // Sekali per koran, bukan sekali per berita: 6 perintah untuk 15 berita.
   const sourceIds = new Map<string, number>();
   for (const mention of mentions) {
     if (sourceIds.has(mention.source.slug)) continue;
@@ -223,9 +169,8 @@ export async function storeMentions(
       mention.dedupeKey,
     ]);
 
-    // Cara mengetahui baris ini baru atau hasil penggabungan:
-    // baris baru selalu mulai dengan times_seen = 1 (nilai bawaan kolomnya),
-    // sedangkan penggabungan selalu menaikkannya jadi 2 atau lebih.
+    // Baris baru mulai dari nilai bawaan kolomnya, yaitu 1; penggabungan
+    // selalu menaikkannya.
     if (rows[0]!.times_seen === 1) inserted += 1;
     else merged += 1;
   }
@@ -233,17 +178,10 @@ export async function storeMentions(
   return { inserted, merged };
 }
 
-// ===========================================================================
-// Gabungan keduanya, dipakai oleh endpoint
-// ===========================================================================
-
 /**
- * Membersihkan lalu menyimpan satu kiriman, dalam SATU transaksi.
- *
- * Kenapa satu transaksi? Supaya tidak ada kiriman yang tersimpan setengah
- * jadi. Kalau database bermasalah di record ke-9, sembilan record pertama
- * ikut dibatalkan, dan pihak pengirim boleh mencoba ulang seluruh file dengan
- * tenang -- yang justru aman, karena endpoint ini idempotent.
+ * Satu transaksi untuk seluruh kiriman, supaya tidak ada yang tersimpan
+ * setengah jadi. Kalau gagal di tengah, pengirim boleh mencoba ulang seluruh
+ * file -- yang aman, karena endpoint ini idempotent.
  */
 export async function ingestMentions(records: unknown[]): Promise<IngestReport> {
   const prepared = prepareMentions(records);
