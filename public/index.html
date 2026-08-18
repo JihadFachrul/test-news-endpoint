@@ -544,6 +544,30 @@ $("btn-reset").addEventListener("click", () => {
   load();
 });
 
+/**
+ * Mengosongkan kotak pencarian langsung memuat ulang hasilnya.
+ *
+ * Masalah yang diperbaiki: tombol silang (x) bawaan browser di dalam kotak
+ * pencarian mengosongkan kotaknya tapi TIDAK mengirim form. Tanpa ini, hasil
+ * di layar tetap hasil pencarian yang lama -- formnya bilang "semua", hasilnya
+ * bilang "tourism". Tidak salah secara teknis, tapi membingungkan, dan yang
+ * paling mudah tertipu justru orang yang baru pertama membuka halaman ini.
+ *
+ * Dipakai event "input", BUKAN "search". Alasannya: "search" hanya ada pada
+ * <input type=search> dan tidak semua browser memicunya, sedangkan "input"
+ * selalu dipicu -- oleh tombol silang, oleh Ctrl+A lalu Delete, maupun oleh
+ * penghapusan satu per satu. Memasang keduanya justru membuat tombol silang
+ * mengirim permintaan dua kali.
+ *
+ * Syarat kosong membuat pengetikan biasa tidak memicu permintaan di setiap
+ * huruf; pencarian tetap dijalankan lewat tombol Apply atau tombol Enter.
+ */
+$("q").addEventListener("input", () => {
+  if ($("q").value !== "") return;
+  offset = 0;
+  load();
+});
+
 $("prev").addEventListener("click", () => {
   offset = Math.max(0, offset - Number($("limit").value));
   load();
