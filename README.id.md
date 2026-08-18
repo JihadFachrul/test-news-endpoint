@@ -68,6 +68,11 @@ memanggil endpoint milik layanan ini sendiri, dan menampilkan alamat permintaan
 yang dipakainya supaya bisa langsung disalin ke `curl`. Opsional menurut brief;
 daftar endpoint dalam bentuk JSON ada di `/api`.
 
+![Dashboard](Dashboard.JPG)
+
+Kolom `Seen` itu `times_seen`, jadi duplikat yang sudah digabung kelihatan
+langsung di layar: artikel ringgit menunjukkan 3, artikel GDP 2.
+
 ```bash
 npm test          # 98 tes
 npm run typecheck

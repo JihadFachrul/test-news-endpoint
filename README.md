@@ -67,6 +67,11 @@ this service's own endpoints and shows the request URLs it uses, so you can copy
 them straight into `curl`. Optional per the brief; the JSON endpoint index is at
 `/api`.
 
+![Dashboard](Dashboard.JPG)
+
+The `Seen` column is `times_seen`, so merged duplicates are visible on screen:
+the ringgit article reads 3, the GDP article 2.
+
 ```bash
 npm test          # 98 tests
 npm run typecheck
